@@ -1,0 +1,6 @@
+{
+  "name": "District 38 — Premium Motorcycle Gear",
+  "description": "District 38 e-commerce website for motorcycle riding gear, premium helmets, jackets, boots, and bike accessories in Trichy.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
