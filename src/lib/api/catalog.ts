@@ -4,6 +4,7 @@ import {
   ProductListPage,
   PublicBrand,
   PublicCategory,
+  TagCount,
   PublicProductDetail,
 } from './types'
 
@@ -20,6 +21,8 @@ export function listProducts(params: ListProductsParams = {}): Promise<ProductLi
     priceMin: params.priceMin,
     priceMax: params.priceMax,
     inStock: params.inStock ? 'true' : undefined,
+    tag: params.tag,
+    onSale: params.onSale ? 'true' : undefined,
     sort: params.sort,
     page: params.page,
     limit: params.limit,
@@ -53,3 +56,6 @@ function shared<T>(load: () => Promise<T>): () => Promise<T> {
 export const listBrands = shared(() => apiGet<PublicBrand[]>('/api/public/v1/brands'))
 
 export const listCategories = shared(() => apiGet<PublicCategory[]>('/api/public/v1/categories'))
+
+/** Published products per tag, across the whole catalog. */
+export const listTags = shared(() => apiGet<TagCount[]>('/api/public/v1/tags'))

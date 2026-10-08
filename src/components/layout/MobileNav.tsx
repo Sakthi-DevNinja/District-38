@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
 import { useCategoryTree } from '../../hooks/use-category-tree';
+import { useHasCollections } from '../../hooks/use-has-collections';
 import { DISTRICT_38_STORE } from '../../data/storeInfo';
 import { BrandLogo } from './BrandLogo';
 
@@ -39,6 +40,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ isOpen: propIsOpen, onClos
     logout
   } = useShop();
   const { tree: categoryTree } = useCategoryTree();
+  const hasCollections = useHasCollections();
 
   const isDrawerOpen = propIsOpen !== undefined ? propIsOpen : isMobileNavOpen;
   const handleClose = () => {
@@ -218,6 +220,15 @@ export const MobileNav: React.FC<MobileNavProps> = ({ isOpen: propIsOpen, onClos
                     <span>Official Brands Directory</span>
                     <ChevronRight className="w-4 h-4 text-neutral-400" />
                   </button>
+                  {hasCollections && (
+                    <button
+                      onClick={() => { navigate('/collections'); handleClose(); }}
+                      className="w-full flex items-center justify-between p-2.5 rounded-lg text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                    >
+                      <span>Curated Collections</span>
+                      <ChevronRight className="w-4 h-4 text-neutral-400" />
+                    </button>
+                  )}
                   <button
                     onClick={() => { navigate('/offers'); handleClose(); }}
                     className="w-full flex items-center justify-between p-2.5 rounded-lg text-sm font-bold text-orange-600 hover:bg-orange-50"

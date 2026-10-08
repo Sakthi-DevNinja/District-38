@@ -14,11 +14,12 @@ import { categoryImage, CategoryNode } from '../lib/category-tree';
 import { slugifyCategoryName } from '../lib/product-adapter';
 import { RidingGalleryCarousel } from '../components/media/RidingGalleryCarousel';
 import { VideoPlayerSection } from '../components/media/VideoPlayerSection';
-import { RidingStyle } from '../types';
+import { useTags } from '../hooks/use-tags';
+import { RIDING_STYLES, tagCounts } from '../lib/collections';
 import { usePageMeta } from '../hooks/use-page-meta';
 
 export const HomePage: React.FC = () => {
-  const { navigate, updateShopFilters } = useShop();
+  const { navigate, updateShopFilters, resetShopFilters } = useShop();
 
   usePageMeta({
     title: 'District 38 — Motorcycle Gear, Helmets & Riding Accessories',
@@ -46,8 +47,14 @@ export const HomePage: React.FC = () => {
     ...tree.flatMap(c => c.children),
   ].slice(0, 4);
 
-  const handleStyleSelect = (style: RidingStyle) => {
-    updateShopFilters({ ridingStyles: [style] });
+  // Riding-style tiles are tag-based lists; styles with no products are hidden.
+  const tagsQuery = useTags();
+  const styleCounts = tagCounts(tagsQuery.data);
+  const ridingStyles = RIDING_STYLES.filter(s => (styleCounts.get(s.tag) ?? 0) > 0);
+
+  const handleStyleSelect = (tag: string) => {
+    resetShopFilters();
+    updateShopFilters({ tag });
     navigate('/shop');
   };
 
@@ -144,6 +151,7 @@ export const HomePage: React.FC = () => {
         <VideoPlayerSection />
 
         {/* 5. Shop by Riding Style */}
+        {ridingStyles.length > 0 && (
         <section className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex flex-col items-center text-center mb-6">
             <span className="text-xs font-bold uppercase tracking-wider text-orange-600">
@@ -158,49 +166,20 @@ export const HomePage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              {
-                style: 'Touring' as RidingStyle,
-                title: 'Highway Touring',
-                desc: 'High ventilation helmets, Pinlock inserts, tail bags, and saddlebags.',
-                img: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=600&q=80',
-                tag: 'Long Distance'
-              },
-              {
-                style: 'City' as RidingStyle,
-                title: 'Urban Commuting',
-                desc: 'Lightweight breathable mesh jackets, gloves, and helmet communicators.',
-                img: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?auto=format&fit=crop&w=600&q=80',
-                tag: 'Daily Riding'
-              },
-              {
-                style: 'Adventure' as RidingStyle,
-                title: 'Adventure & Off-Road',
-                desc: 'Dual-sport helmets with peak visors, waterproof dry bags, and knee armor.',
-                img: 'https://images.unsplash.com/photo-1599819811279-d5ad9cccf838?auto=format&fit=crop&w=600&q=80',
-                tag: 'All Terrain'
-              },
-              {
-                style: 'Performance' as RidingStyle,
-                title: 'Track & Sport',
-                desc: 'Full-face spoiler helmets, CE Level 2 back protectors, and gauntlet gloves.',
-                img: 'https://images.unsplash.com/photo-1558980664-769d59546b3d?auto=format&fit=crop&w=600&q=80',
-                tag: 'Track & Street'
-              }
-            ].map((item, idx) => (
+            {ridingStyles.map((item, idx) => (
               <div
                 key={idx}
-                onClick={() => handleStyleSelect(item.style)}
+                onClick={() => handleStyleSelect(item.tag)}
                 className="group relative rounded-lg overflow-hidden border border-neutral-200 bg-neutral-900 text-white h-72 cursor-pointer hover:border-neutral-900 transition-colors"
               >
                 <img
-                  src={item.img}
+                  src={item.image}
                   alt={item.title}
                   className="w-full h-full object-cover opacity-60 group-hover:opacity-75 transition-opacity duration-300"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent p-5 flex flex-col justify-between">
                   <div className="self-start px-2 py-0.5 rounded-sm bg-black/60 text-[10px] font-bold uppercase tracking-wider">
-                    {item.tag}
+                    {item.label}
                   </div>
                   <div>
                     <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-orange-400 transition-colors flex items-center justify-between">
@@ -208,7 +187,7 @@ export const HomePage: React.FC = () => {
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                     </h3>
                     <p className="text-xs text-neutral-300 mt-1 leading-relaxed line-clamp-2">
-                      {item.desc}
+                      {item.description}
                     </p>
                   </div>
                 </div>
@@ -216,6 +195,7 @@ export const HomePage: React.FC = () => {
             ))}
           </div>
         </section>
+        )}
 
         {/* 6. Shop by Brand */}
         <section className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">

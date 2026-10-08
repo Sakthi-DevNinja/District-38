@@ -3,9 +3,7 @@ import {
   SlidersHorizontal,
   X,
   Grid,
-  Columns,
-  ChevronLeft,
-  ChevronRight
+  Columns
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { useProducts } from '../hooks/use-products';
@@ -13,6 +11,8 @@ import { useCategories } from '../hooks/use-categories';
 import { useBrands } from '../hooks/use-brands';
 import { adaptListItem, slugifyCategoryName } from '../lib/product-adapter';
 import { ProductGrid } from '../components/commerce/ProductGrid';
+import { Pagination } from '../components/commerce/Pagination';
+import { tagTitle } from '../lib/collections';
 import { FilterDrawer, NO_PRICE_LIMIT } from '../components/commerce/FilterDrawer';
 import { usePageMeta } from '../hooks/use-page-meta';
 import { CatalogSort } from '../lib/api/types';
@@ -24,23 +24,11 @@ const SORT_PARAM: Record<FilterState['sortBy'], CatalogSort> = {
   newest: 'newest',
   'price-asc': 'price_asc',
   'price-desc': 'price_desc',
+  discount: 'discount',
   // Not offered by the catalog API; fall back to newest first.
   featured: 'newest',
-  rating: 'newest',
-  discount: 'newest'
+  rating: 'newest'
 };
-
-// 1 … 4 5 6 … 12 — the current page, its neighbours, and both ends.
-function pageNumbers(current: number, total: number): (number | 'gap')[] {
-  const pages = new Set([1, total, current - 1, current, current + 1]);
-  const sorted = [...pages].filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
-  const result: (number | 'gap')[] = [];
-  sorted.forEach((p, i) => {
-    if (i > 0 && p - sorted[i - 1] > 1) result.push('gap');
-    result.push(p);
-  });
-  return result;
-}
 
 interface ShopPageProps {
   initialCategory?: string;
@@ -75,6 +63,8 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
     brandId: shopFilters.brand[0],
     priceMax: shopFilters.priceRange[1] < NO_PRICE_LIMIT ? shopFilters.priceRange[1] : undefined,
     inStock: shopFilters.inStockOnly || undefined,
+    tag: shopFilters.tag,
+    onSale: shopFilters.onSaleOnly || undefined,
     sort: SORT_PARAM[shopFilters.sortBy]
   };
 
@@ -113,6 +103,8 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
     (shopFilters.category ? 1 : 0) +
     shopFilters.brand.length +
     (shopFilters.inStockOnly ? 1 : 0) +
+    (shopFilters.onSaleOnly ? 1 : 0) +
+    (shopFilters.tag ? 1 : 0) +
     (shopFilters.searchQuery ? 1 : 0) +
     (shopFilters.priceRange[1] < NO_PRICE_LIMIT ? 1 : 0);
 
@@ -130,6 +122,8 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
           <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
             {shopFilters.searchQuery
               ? `Results for "${shopFilters.searchQuery}"`
+              : shopFilters.tag
+              ? tagTitle(shopFilters.tag)
               : activeCategory
               ? activeCategory.name
               : 'All Motorcycle Riding Gear'}
@@ -180,6 +174,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
               <option value="newest">Newest First</option>
               <option value="price-asc">Price: Low to High</option>
               <option value="price-desc">Price: High to Low</option>
+              <option value="discount">Biggest Discount</option>
             </select>
           </div>
 
@@ -251,6 +246,24 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
             </span>
           )}
 
+          {shopFilters.tag && (
+            <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-orange-100 text-orange-800 text-xs font-medium border border-orange-200">
+              <span>Collection: {tagTitle(shopFilters.tag)}</span>
+              <button onClick={() => updateShopFilters({ tag: undefined })} className="hover:text-red-600" aria-label="Remove collection filter">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
+          {shopFilters.onSaleOnly && (
+            <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-orange-100 text-orange-800 text-xs font-medium border border-orange-200">
+              <span>On Sale</span>
+              <button onClick={() => updateShopFilters({ onSaleOnly: false })} className="hover:text-red-600" aria-label="Remove on-sale filter">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
           {shopFilters.inStockOnly && (
             <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-medium border border-neutral-200">
               <span>In Stock Only</span>
@@ -292,44 +305,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
             emptyDescription="Try another brand, a higher price limit, or clear the filters to see everything."
           />
 
-          {totalPages > 1 && (
-            <nav className="flex items-center justify-center gap-1.5" aria-label="Pagination">
-              <button
-                onClick={() => goToPage(page - 1)}
-                disabled={page <= 1}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-semibold text-neutral-800 hover:border-neutral-900 disabled:opacity-40 disabled:hover:border-neutral-300"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Previous</span>
-              </button>
-              {pageNumbers(page, totalPages).map((p, i) =>
-                p === 'gap' ? (
-                  <span key={`gap-${i}`} className="px-1 text-xs text-neutral-400">…</span>
-                ) : (
-                  <button
-                    key={p}
-                    onClick={() => goToPage(p)}
-                    aria-current={p === page ? 'page' : undefined}
-                    className={`min-w-9 px-3 py-2 rounded-xl text-xs font-bold ${
-                      p === page
-                        ? 'bg-neutral-950 text-white'
-                        : 'border border-neutral-300 bg-white text-neutral-800 hover:border-neutral-900'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
-              <button
-                onClick={() => goToPage(page + 1)}
-                disabled={page >= totalPages}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-semibold text-neutral-800 hover:border-neutral-900 disabled:opacity-40 disabled:hover:border-neutral-300"
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </nav>
-          )}
+          <Pagination page={page} totalPages={totalPages} onChange={goToPage} />
         </div>
       </div>
     </div>

@@ -51,6 +51,8 @@ export interface PublicProductListItem {
   inStock: boolean
   isFeatured: boolean
   isBestSeller: boolean
+  /** As entered in the catalog, e.g. ["Touring", "helmet"]. */
+  tags: string[]
   thumbnail: PublicImage | null
 }
 
@@ -77,6 +79,8 @@ export interface PublicCategory {
 export interface CatalogFacets {
   /** Brands in the current category/search, ignoring the brand and price selections. */
   brands: { id: string; name: string; count: number }[]
+  /** Ignores the tag selection, like brands ignore the brand selection. */
+  tags: TagCount[]
   priceRange: { min: number; max: number } | null
 }
 
@@ -90,7 +94,12 @@ export interface ProductListPage {
   facets?: CatalogFacets
 }
 
-export type CatalogSort = 'newest' | 'price_asc' | 'price_desc' | 'name'
+export interface TagCount {
+  tag: string
+  count: number
+}
+
+export type CatalogSort = 'newest' | 'price_asc' | 'price_desc' | 'name' | 'discount'
 
 export interface ListProductsParams {
   q?: string
@@ -100,6 +109,10 @@ export interface ListProductsParams {
   priceMin?: number
   priceMax?: number
   inStock?: boolean
+  /** Any of these tags, matched case-insensitively. */
+  tag?: string
+  /** Only products priced below MRP. */
+  onSale?: boolean
   sort?: CatalogSort
   /** 1-based. */
   page?: number

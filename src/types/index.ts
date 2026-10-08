@@ -232,6 +232,8 @@ export interface FilterState {
   subcategory?: string;
   /** Brand ids. The catalog API filters on one brand at a time. */
   brand: string[];
+  /** A collection or riding-style tag, e.g. "touring". */
+  tag?: string;
   priceRange: [number, number];
   sizes: string[];
   colors: string[];

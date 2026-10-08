@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Flame } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { useProducts } from '../hooks/use-products';
 import { adaptListItem } from '../lib/product-adapter';
 import { ProductGrid } from '../components/commerce/ProductGrid';
+import { Pagination } from '../components/commerce/Pagination';
+
+const PAGE_SIZE = 24;
 import { usePageMeta } from '../hooks/use-page-meta';
 
 // Promotional/coupon codes are NOT a real VEYONN capability today (no
@@ -20,10 +23,16 @@ export const OffersPage: React.FC = () => {
     path: '/offers'
   }, []);
 
-  const productsQuery = useProducts({ limit: 100 });
-  const discountedProducts = (productsQuery.data?.items ?? [])
-    .map(adaptListItem)
-    .filter((p) => p.isOnSale);
+  // Server-side: only products priced below MRP, biggest discount first.
+  const [page, setPage] = useState(1);
+  const productsQuery = useProducts({ onSale: true, sort: 'discount', page, limit: PAGE_SIZE });
+  const discountedProducts = (productsQuery.data?.items ?? []).map(adaptListItem);
+  const total = productsQuery.data?.total ?? 0;
+
+  const goToPage = (next: number) => {
+    setPage(next);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
@@ -45,7 +54,7 @@ export const OffersPage: React.FC = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-neutral-950">
-            Discounted Gear On Sale ({discountedProducts.length})
+            Discounted Gear On Sale ({total})
           </h2>
           <button onClick={() => navigate('/shop')} className="text-xs font-bold text-orange-600 hover:underline">
             View All Catalog →
@@ -59,6 +68,7 @@ export const OffersPage: React.FC = () => {
           emptyDescription="Check back soon — our sale selection updates as new discounts go live."
           columns={4}
         />
+        <Pagination page={page} totalPages={productsQuery.data?.totalPages ?? 0} onChange={goToPage} />
       </div>
     </div>
   );

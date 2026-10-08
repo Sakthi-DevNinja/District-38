@@ -119,6 +119,16 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
           <span className="font-medium text-neutral-800">In Stock only</span>
         </label>
 
+        <label className="flex items-center space-x-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={shopFilters.onSaleOnly}
+            onChange={(e) => updateShopFilters({ onSaleOnly: e.target.checked })}
+            className="w-4 h-4 rounded border-neutral-300 text-orange-600 focus:ring-orange-500"
+          />
+          <span className="font-medium text-neutral-800">On Sale</span>
+        </label>
+
       </div>
 
       {/* 4. Brands */}

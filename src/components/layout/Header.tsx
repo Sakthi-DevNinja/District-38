@@ -15,6 +15,7 @@ import {
 import { useShop } from '../../context/ShopContext';
 import { MegaMenu } from './MegaMenu';
 import { useCategoryTree } from '../../hooks/use-category-tree';
+import { useHasCollections } from '../../hooks/use-has-collections';
 
 const MAX_NAV_CATEGORIES = 4;
 import { BrandLogo } from './BrandLogo';
@@ -39,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
 
   const [activeMegaMenu, setActiveMegaMenu] = useState<string | null>(null);
   const { tree: categoryTree } = useCategoryTree();
+  const hasCollections = useHasCollections();
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -72,6 +74,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
     { label: 'Shop', route: '/shop' },
     ...categoryLinks,
     { label: 'Brands', route: '/brands' },
+    // Shown only while a curated collection has products to show.
+    ...(hasCollections ? [{ label: 'Collections', route: '/collections' }] : []),
     { label: 'Offers', route: '/offers', highlight: true }
   ];
 
