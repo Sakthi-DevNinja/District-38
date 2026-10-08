@@ -14,6 +14,9 @@ import {
 } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
 import { MegaMenu } from './MegaMenu';
+import { useCategoryTree } from '../../hooks/use-category-tree';
+
+const MAX_NAV_CATEGORIES = 4;
 import { BrandLogo } from './BrandLogo';
 
 interface HeaderProps {
@@ -35,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
   } = useShop();
 
   const [activeMegaMenu, setActiveMegaMenu] = useState<string | null>(null);
+  const { tree: categoryTree } = useCategoryTree();
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -54,15 +58,20 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navLinks = [
+  // Top-level categories from the catalog, each opening its own mega menu.
+  // More than four would crowd the bar; the rest are reachable from Shop.
+  const categoryLinks = categoryTree.slice(0, MAX_NAV_CATEGORIES).map(c => ({
+    label: c.name,
+    route: `/${c.slug}`,
+    megaKey: c.id,
+    highlight: false
+  }));
+
+  const navLinks: { label: string; route: string; megaKey?: string; highlight?: boolean }[] = [
     { label: 'Home', route: '/' },
     { label: 'Shop', route: '/shop' },
-    { label: 'Helmets', route: '/helmets', megaKey: 'helmets' },
-    { label: 'Riding Gear', route: '/riding-gear', megaKey: 'riding-gear' },
-    { label: 'Accessories', route: '/bike-accessories', megaKey: 'accessories' },
-    { label: 'Bike Care', route: '/bike-care', megaKey: 'bike-care' },
+    ...categoryLinks,
     { label: 'Brands', route: '/brands' },
-    { label: 'Collections', route: '/collections' },
     { label: 'Offers', route: '/offers', highlight: true }
   ];
 

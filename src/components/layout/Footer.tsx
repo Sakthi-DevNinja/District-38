@@ -15,9 +15,13 @@ import {
 import { useShop } from '../../context/ShopContext';
 import { DISTRICT_38_STORE } from '../../data/storeInfo';
 import { BrandLogo } from './BrandLogo';
+import { useCategoryTree } from '../../hooks/use-category-tree';
 
 export const Footer: React.FC = () => {
   const { navigate, showToast } = useShop();
+  const { tree } = useCategoryTree();
+  // Top-level categories first, then subcategories, capped to keep the column short.
+  const footerCategories = [...tree, ...tree.flatMap(c => c.children)].slice(0, 6);
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
 
@@ -104,36 +108,13 @@ export const Footer: React.FC = () => {
               Shop Gear
             </div>
             <ul className="space-y-2">
-              <li>
-                <button onClick={() => navigate('/helmets')} className="hover:text-white transition-colors">
-                  Full Face Helmets
-                </button>
-              </li>
-              <li>
-                <button onClick={() => navigate('/riding-gear')} className="hover:text-white transition-colors">
-                  Mesh Riding Jackets
-                </button>
-              </li>
-              <li>
-                <button onClick={() => navigate('/riding-gear')} className="hover:text-white transition-colors">
-                  Leather & Mesh Gloves
-                </button>
-              </li>
-              <li>
-                <button onClick={() => navigate('/riding-gear')} className="hover:text-white transition-colors">
-                  Riding Pants & Boots
-                </button>
-              </li>
-              <li>
-                <button onClick={() => navigate('/bike-accessories')} className="hover:text-white transition-colors">
-                  ViaTerra Tail Bags
-                </button>
-              </li>
-              <li>
-                <button onClick={() => navigate('/bike-care')} className="hover:text-white transition-colors">
-                  Motul Chain Lubes
-                </button>
-              </li>
+              {footerCategories.map(category => (
+                <li key={category.id}>
+                  <button onClick={() => navigate(`/${category.slug}`)} className="hover:text-white transition-colors">
+                    {category.name}
+                  </button>
+                </li>
+              ))}
               <li>
                 <button onClick={() => navigate('/offers')} className="text-orange-400 hover:text-orange-300 font-semibold">
                   Deals & Clearance

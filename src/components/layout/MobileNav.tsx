@@ -15,7 +15,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
-import { CATEGORIES } from '../../data/categories';
+import { useCategoryTree } from '../../hooks/use-category-tree';
 import { DISTRICT_38_STORE } from '../../data/storeInfo';
 import { BrandLogo } from './BrandLogo';
 
@@ -38,6 +38,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ isOpen: propIsOpen, onClos
     currentUser,
     logout
   } = useShop();
+  const { tree: categoryTree } = useCategoryTree();
 
   const isDrawerOpen = propIsOpen !== undefined ? propIsOpen : isMobileNavOpen;
   const handleClose = () => {
@@ -158,7 +159,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ isOpen: propIsOpen, onClos
               ) : (
                 <div className="p-3 bg-neutral-950 text-white rounded-xl">
                   <div className="text-xs font-bold">Rider Membership</div>
-                  <p className="text-[11px] text-neutral-400 mt-0.5">Sign in to track orders, save bike specs & earn points.</p>
+                  <p className="text-[11px] text-neutral-400 mt-0.5">Sign in to track your orders and keep your wishlist.</p>
                   <button
                     onClick={() => { navigate('/login'); handleClose(); }}
                     className="mt-2.5 w-full py-1.5 rounded-lg bg-orange-600 text-white text-xs font-bold tracking-wide"
@@ -181,34 +182,26 @@ export const MobileNav: React.FC<MobileNavProps> = ({ isOpen: propIsOpen, onClos
                     <span>All Products</span>
                     <ChevronRight className="w-4 h-4 text-neutral-400" />
                   </button>
-                  <button
-                    onClick={() => { navigate('/helmets'); handleClose(); }}
-                    className="w-full flex items-center justify-between p-2.5 rounded-lg text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
-                  >
-                    <span>Helmets (ECE 22.06)</span>
-                    <ChevronRight className="w-4 h-4 text-neutral-400" />
-                  </button>
-                  <button
-                    onClick={() => { navigate('/riding-gear'); handleClose(); }}
-                    className="w-full flex items-center justify-between p-2.5 rounded-lg text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
-                  >
-                    <span>Riding Apparel</span>
-                    <ChevronRight className="w-4 h-4 text-neutral-400" />
-                  </button>
-                  <button
-                    onClick={() => { navigate('/bike-accessories'); handleClose(); }}
-                    className="w-full flex items-center justify-between p-2.5 rounded-lg text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
-                  >
-                    <span>Bike Accessories</span>
-                    <ChevronRight className="w-4 h-4 text-neutral-400" />
-                  </button>
-                  <button
-                    onClick={() => { navigate('/bike-care'); handleClose(); }}
-                    className="w-full flex items-center justify-between p-2.5 rounded-lg text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
-                  >
-                    <span>Bike Care & Lubricants</span>
-                    <ChevronRight className="w-4 h-4 text-neutral-400" />
-                  </button>
+                  {categoryTree.map(category => (
+                    <div key={category.id}>
+                      <button
+                        onClick={() => { navigate(`/${category.slug}`); handleClose(); }}
+                        className="w-full flex items-center justify-between p-2.5 rounded-lg text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
+                      >
+                        <span>{category.name}</span>
+                        <ChevronRight className="w-4 h-4 text-neutral-400" />
+                      </button>
+                      {category.children.map(sub => (
+                        <button
+                          key={sub.id}
+                          onClick={() => { navigate(`/${sub.slug}`); handleClose(); }}
+                          className="w-full text-left pl-6 pr-2.5 py-2 rounded-lg text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+                        >
+                          {sub.name}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -223,13 +216,6 @@ export const MobileNav: React.FC<MobileNavProps> = ({ isOpen: propIsOpen, onClos
                     className="w-full flex items-center justify-between p-2.5 rounded-lg text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
                   >
                     <span>Official Brands Directory</span>
-                    <ChevronRight className="w-4 h-4 text-neutral-400" />
-                  </button>
-                  <button
-                    onClick={() => { navigate('/collections'); handleClose(); }}
-                    className="w-full flex items-center justify-between p-2.5 rounded-lg text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
-                  >
-                    <span>Curated Collections</span>
                     <ChevronRight className="w-4 h-4 text-neutral-400" />
                   </button>
                   <button

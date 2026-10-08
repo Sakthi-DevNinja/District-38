@@ -31,10 +31,25 @@ export function getProductBySlug(slug: string): Promise<PublicProductDetail> {
   return apiGet<PublicProductDetail>(`/api/public/v1/products/${encodeURIComponent(slug)}`)
 }
 
-export function listBrands(): Promise<PublicBrand[]> {
-  return apiGet<PublicBrand[]>('/api/public/v1/brands')
+// Brands and categories change rarely and are read by the header, menus,
+// footer and home page at once, so one request is shared for a few minutes.
+const REFERENCE_TTL_MS = 5 * 60 * 1000
+
+function shared<T>(load: () => Promise<T>): () => Promise<T> {
+  let cached: { promise: Promise<T>; at: number } | null = null
+  return () => {
+    if (!cached || Date.now() - cached.at > REFERENCE_TTL_MS) {
+      const promise = load()
+      cached = { promise, at: Date.now() }
+      // A failed request is not kept, so the next caller retries.
+      promise.catch(() => {
+        if (cached?.promise === promise) cached = null
+      })
+    }
+    return cached.promise
+  }
 }
 
-export function listCategories(): Promise<PublicCategory[]> {
-  return apiGet<PublicCategory[]>('/api/public/v1/categories')
-}
+export const listBrands = shared(() => apiGet<PublicBrand[]>('/api/public/v1/brands'))
+
+export const listCategories = shared(() => apiGet<PublicCategory[]>('/api/public/v1/categories'))

@@ -7,8 +7,11 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
-import { CATEGORIES } from '../data/categories';
-import { BRANDS } from '../data/brands';
+import { useCategoryTree } from '../hooks/use-category-tree';
+import { useBrands } from '../hooks/use-brands';
+import { useProducts } from '../hooks/use-products';
+import { categoryImage, CategoryNode } from '../lib/category-tree';
+import { slugifyCategoryName } from '../lib/product-adapter';
 import { RidingGalleryCarousel } from '../components/media/RidingGalleryCarousel';
 import { VideoPlayerSection } from '../components/media/VideoPlayerSection';
 import { RidingStyle } from '../types';
@@ -23,9 +26,25 @@ export const HomePage: React.FC = () => {
     path: '/'
   }, []);
 
-  // This homepage is deliberately catalog-free: no product API calls, no
-  // ProductCard/ProductGrid — every section below is editorial (categories,
-  // brand directory, guides), not live product data.
+  // Categories and brands come from the live catalog. One product-list call
+  // with facets gives each brand's real product count.
+  const { tree } = useCategoryTree();
+  const brandsQuery = useBrands();
+  const catalogSummary = useProducts({ limit: 1, facets: true });
+  const brandCounts = new Map(
+    (catalogSummary.data?.facets?.brands ?? []).map(b => [b.id, b.count]),
+  );
+
+  // Once counts are known, only brands with something to buy are shown.
+  const homeBrands = (brandsQuery.data ?? []).filter(
+    b => !catalogSummary.data?.facets || brandCounts.has(b.id),
+  );
+
+  // Up to four tiles: top-level categories first, then their subcategories.
+  const featuredCategories: CategoryNode[] = [
+    ...tree,
+    ...tree.flatMap(c => c.children),
+  ].slice(0, 4);
 
   const handleStyleSelect = (style: RidingStyle) => {
     updateShopFilters({ ridingStyles: [style] });
@@ -88,28 +107,27 @@ export const HomePage: React.FC = () => {
               breakpoint (mobile: 2-col grid summing to full rows;
               desktop: 4-col x 2-row grid summing to a full 4x2 block). */}
           <div className="grid grid-cols-2 lg:grid-cols-4 lg:grid-rows-2 gap-3 sm:gap-4 lg:h-[600px]">
-            {CATEGORIES.map((category, idx) => (
+            {featuredCategories.map((category, idx) => (
               <div
                 key={category.id}
                 onClick={() => navigate(`/${category.slug}`)}
-                className={`group relative overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100 cursor-pointer aspect-[4/3] lg:aspect-auto lg:h-full ${
-                  idx === 0 ? 'col-span-2 lg:col-span-2 lg:row-span-2' :
-                  idx === 1 ? 'col-span-1 lg:col-span-2' :
-                  idx === 3 ? 'col-span-2 lg:col-span-1' :
-                  'col-span-1 lg:col-span-1'
-                }`}
+                className={`group relative overflow-hidden rounded-lg border border-neutral-200 bg-neutral-900 cursor-pointer aspect-[4/3] lg:aspect-auto lg:h-full ${tileSpan(idx, featuredCategories.length)}`}
               >
-                <img
-                  src={category.image}
-                  alt={category.name}
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
+                {categoryImage(category.slug) && (
+                  <img
+                    src={categoryImage(category.slug)}
+                    alt={category.name}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 <div className="absolute inset-0 flex flex-col justify-end p-4 sm:p-6 text-white">
                   <div className={`font-extrabold leading-tight ${idx === 0 ? 'text-2xl sm:text-3xl' : 'text-base sm:text-lg'}`}>
                     {category.name}
                   </div>
-                  <div className="text-xs text-neutral-300 mt-1">{category.itemCount} items</div>
+                  {category.description && (
+                    <div className="text-xs text-neutral-300 mt-1 line-clamp-1">{category.description}</div>
+                  )}
                   {idx === 0 && (
                     <div className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-orange-400 group-hover:gap-2 transition-all">
                       <span>Shop Now</span>
@@ -218,17 +236,20 @@ export const HomePage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {BRANDS.map(b => (
+            {homeBrands.map(b => (
               <button
                 key={b.id}
-                onClick={() => navigate(`/brands/${b.slug}`)}
+                onClick={() => navigate(`/brands/${slugifyCategoryName(b.name)}`)}
                 className="p-4 rounded-lg border border-neutral-200 hover:border-neutral-900 bg-white text-center transition-colors group"
               >
                 <div className="text-sm font-extrabold text-neutral-900 group-hover:text-orange-600 tracking-tight">
                   {b.name}
                 </div>
-                <div className="text-[11px] text-neutral-400 mt-0.5">{b.origin}</div>
-                <div className="text-[11px] text-neutral-500 mt-2 font-medium">{b.productCount} products</div>
+                {brandCounts.has(b.id) && (
+                  <div className="text-[11px] text-neutral-500 mt-2 font-medium">
+                    {brandCounts.get(b.id)} {brandCounts.get(b.id) === 1 ? 'product' : 'products'}
+                  </div>
+                )}
               </button>
             ))}
           </div>
@@ -237,3 +258,19 @@ export const HomePage: React.FC = () => {
     </div>
   );
 };
+
+// Grid spans for 1–4 category tiles, so every count fills complete rows
+// (mobile: 2 columns; desktop: 4 columns x 2 rows).
+function tileSpan(idx: number, count: number): string {
+  if (count === 1) return 'col-span-2 lg:col-span-4 lg:row-span-2';
+  if (count === 2) return 'col-span-2 lg:col-span-2 lg:row-span-2';
+  if (count === 3) {
+    return idx === 0
+      ? 'col-span-2 lg:col-span-2 lg:row-span-2'
+      : 'col-span-1 lg:col-span-2';
+  }
+  return idx === 0 ? 'col-span-2 lg:col-span-2 lg:row-span-2' :
+    idx === 1 ? 'col-span-1 lg:col-span-2' :
+    idx === 3 ? 'col-span-2 lg:col-span-1' :
+    'col-span-1 lg:col-span-1';
+}
