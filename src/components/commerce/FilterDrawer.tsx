@@ -1,20 +1,31 @@
 import React from 'react';
-import { X, RotateCcw, Flame } from 'lucide-react';
+import { X, RotateCcw } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
 import { useCategories } from '../../hooks/use-categories';
 import { useBrands } from '../../hooks/use-brands';
 import { slugifyCategoryName as slugify } from '../../lib/product-adapter';
+import { CatalogFacets } from '../../lib/api/types';
+
+/** The default max price, meaning "no price filter". */
+export const NO_PRICE_LIMIT = 50000;
+const PRICE_STEP = 500;
 
 interface FilterDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   isDesktopSidebar?: boolean;
+  /** Brands and price range for the current category/search, from the catalog API. */
+  facets?: CatalogFacets;
+  /** Shown on the mobile "show results" button. */
+  resultCount?: number;
 }
 
 export const FilterDrawer: React.FC<FilterDrawerProps> = ({
   isOpen,
   onClose,
-  isDesktopSidebar = false
+  isDesktopSidebar = false,
+  facets,
+  resultCount
 }) => {
   const { shopFilters, updateShopFilters, resetShopFilters } = useShop();
   const categoriesQuery = useCategories();
@@ -27,16 +38,30 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
     });
   };
 
-  const handleBrandToggle = (brandName: string) => {
-    const brands = [...shopFilters.brand];
-    const index = brands.indexOf(brandName);
-    if (index > -1) {
-      brands.splice(index, 1);
-    } else {
-      brands.push(brandName);
-    }
-    updateShopFilters({ brand: brands });
+  // One brand at a time — the catalog API filters on a single brand.
+  const handleBrandToggle = (brandId: string) => {
+    updateShopFilters({ brand: shopFilters.brand[0] === brandId ? [] : [brandId] });
   };
+
+  // Brands in view, plus the selected one even when other filters leave it
+  // with no matches — otherwise it could not be unselected here.
+  const selectedBrandId = shopFilters.brand[0];
+  const brandOptions = [...(facets?.brands ?? [])];
+  if (selectedBrandId && !brandOptions.some(b => b.id === selectedBrandId)) {
+    const selected = (brandsQuery.data ?? []).find(b => b.id === selectedBrandId);
+    if (selected) brandOptions.push({ id: selected.id, name: selected.name, count: 0 });
+  }
+
+  // Slider bounds follow the real prices in view, rounded to whole steps.
+  const priceFloor = facets?.priceRange
+    ? Math.floor(facets.priceRange.min / PRICE_STEP) * PRICE_STEP
+    : 0;
+  const priceCeiling = facets?.priceRange
+    ? Math.ceil(facets.priceRange.max / PRICE_STEP) * PRICE_STEP
+    : 0;
+  const showPriceFilter = priceCeiling - priceFloor >= PRICE_STEP;
+  const priceValue = Math.min(shopFilters.priceRange[1], priceCeiling);
+  const formatPrice = (value: number) => `₹${value.toLocaleString('en-IN')}`;
 
   // Certification/riding-style filters are intentionally NOT rendered
   // below — VEYONN's public catalog has no such fields on a product today
@@ -91,66 +116,63 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
             onChange={(e) => updateShopFilters({ inStockOnly: e.target.checked })}
             className="w-4 h-4 rounded border-neutral-300 text-orange-600 focus:ring-orange-500"
           />
-          <span className="font-medium text-neutral-800">In Stock at Trichy Hub only</span>
+          <span className="font-medium text-neutral-800">In Stock only</span>
         </label>
 
-        <label className="flex items-center space-x-2.5 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={shopFilters.onSaleOnly}
-            onChange={(e) => updateShopFilters({ onSaleOnly: e.target.checked })}
-            className="w-4 h-4 rounded border-neutral-300 text-orange-600 focus:ring-orange-500"
-          />
-          <span className="font-medium text-neutral-800 flex items-center space-x-1">
-            <Flame className="w-3.5 h-3.5 text-orange-500" />
-            <span>On Sale & Discounted</span>
-          </span>
-        </label>
       </div>
 
       {/* 4. Brands */}
-      <div className="pt-2 border-t border-neutral-100">
-        <div className="font-bold uppercase tracking-wider text-neutral-400 mb-2.5">
-          Authorized Brands
-        </div>
-        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-          {(brandsQuery.data ?? []).map(b => {
-            const isChecked = shopFilters.brand.includes(b.name);
-            return (
+      {brandOptions.length > 0 && (
+        <div className="pt-2 border-t border-neutral-100">
+          <div className="font-bold uppercase tracking-wider text-neutral-400 mb-2.5">
+            Brands
+          </div>
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            {brandOptions.map(b => (
               <label key={b.id} className="flex items-center space-x-2 cursor-pointer select-none">
                 <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => handleBrandToggle(b.name)}
-                  className="w-4 h-4 rounded border-neutral-300 text-orange-600 focus:ring-orange-500"
+                  type="radio"
+                  name={isDesktopSidebar ? 'brand-desktop' : 'brand-mobile'}
+                  checked={shopFilters.brand[0] === b.id}
+                  onClick={() => handleBrandToggle(b.id)}
+                  onChange={() => {}}
+                  className="w-4 h-4 border-neutral-300 text-orange-600 focus:ring-orange-500"
                 />
-                <span className="font-medium text-neutral-800">{b.name}</span>
+                <span className="font-medium text-neutral-800 flex-1">{b.name}</span>
+                <span className="text-neutral-400">{b.count}</span>
               </label>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* 7. Price Filter */}
-      <div className="pt-2 border-t border-neutral-100">
-        <div className="font-bold uppercase tracking-wider text-neutral-400 mb-2.5">
-          Max Price: ₹{shopFilters.priceRange[1].toLocaleString('en-IN')}
+      {/* 5. Price */}
+      {showPriceFilter && (
+        <div className="pt-2 border-t border-neutral-100">
+          <div className="font-bold uppercase tracking-wider text-neutral-400 mb-2.5">
+            Max Price: {priceValue >= priceCeiling ? 'Any' : formatPrice(priceValue)}
+          </div>
+          <input
+            type="range"
+            min={priceFloor}
+            max={priceCeiling}
+            step={PRICE_STEP}
+            value={priceValue}
+            onChange={(e) => {
+              const value = parseInt(e.target.value);
+              updateShopFilters({
+                priceRange: [shopFilters.priceRange[0], value >= priceCeiling ? NO_PRICE_LIMIT : value]
+              });
+            }}
+            aria-label="Maximum price"
+            className="w-full accent-orange-600 cursor-pointer"
+          />
+          <div className="flex justify-between text-[10px] text-neutral-400 mt-1 font-mono">
+            <span>{formatPrice(priceFloor)}</span>
+            <span>{formatPrice(priceCeiling)}</span>
+          </div>
         </div>
-        <input
-          type="range"
-          min="500"
-          max="40000"
-          step="500"
-          value={shopFilters.priceRange[1]}
-          onChange={(e) => updateShopFilters({ priceRange: [shopFilters.priceRange[0], parseInt(e.target.value)] })}
-          className="w-full accent-orange-600 cursor-pointer"
-        />
-        <div className="flex justify-between text-[10px] text-neutral-400 mt-1 font-mono">
-          <span>₹500</span>
-          <span>₹20,000</span>
-          <span>₹40,000+</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 
@@ -177,7 +199,7 @@ export const FilterDrawer: React.FC<FilterDrawerProps> = ({
               onClick={onClose}
               className="w-full py-3 rounded-xl bg-orange-600 text-white font-bold text-xs tracking-wide shadow-md"
             >
-              SHOW RESULTS
+              {resultCount === undefined ? 'SHOW RESULTS' : `SHOW ${resultCount} ${resultCount === 1 ? 'RESULT' : 'RESULTS'}`}
             </button>
           </div>
         </div>

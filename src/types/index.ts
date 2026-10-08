@@ -8,6 +8,7 @@ export interface ProductVariant {
   inStock: boolean;
   stockCount: number;
   price?: number;
+  originalPrice?: number;
   image?: string;
 }
 
@@ -114,96 +115,88 @@ export interface Brand {
   featuredProductIds?: string[];
 }
 
+// Cart line — matches the real VEYONN cart contract exactly: productId +
+// quantity only. VEYONN's Product model has no color/size/variant
+// dimension (see ../lib/product-adapter.ts's own notes), so there is no
+// selectedColor/selectedSize/selectedVariant here — a cart line is always
+// just one product at one quantity.
 export interface CartItem {
-  id: string; // unique item cart ID (product.id + variant)
   productId: string;
+  variantId: string | null;
+  variantName: string | null;
   product: Product;
-  selectedColor?: string;
-  selectedSize?: string;
-  selectedVariant?: ProductVariant;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
 }
 
-export interface UserAddress {
-  id: string;
-  name: string;
-  phone: string;
-  addressLine1?: string;
-  addressLine2?: string;
-  street?: string;
+// A one-time checkout delivery address snapshot — matches CheckoutDto on
+// the backend exactly. VEYONN has no customer-facing address-book API
+// (Contacts' address CRUD is admin-only, under /api/v1/contacts), so this
+// is entered fresh at checkout each time, never a saved/reusable address.
+export interface DeliveryAddress {
+  line1: string;
+  line2?: string;
   city: string;
-  state: string;
-  pincode: string;
-  country?: string;
-  type?: 'Home' | 'Work' | 'Store Pickup';
-  isDefault: boolean;
+  stateProvince: string;
+  postalCode: string;
+  countryCode: string;
 }
 
-export type Address = UserAddress;
-
-export interface OrderItem {
-  id?: string;
+// A customer's own WEBSITE order — field-for-field the real
+// CustomerOrderDetailDto shape (customer-order.dto.ts on the backend).
+// Deliberately has no trackingNumber/courierName/timeline/
+// estimatedDelivery — VEYONN's customer-safe order DTO carries none of
+// that, so none of it is fabricated here.
+export interface OrderLine {
   productId: string;
-  productName?: string;
-  productImage?: string;
-  product?: any;
-  brand?: string;
-  selectedColor?: string;
-  selectedSize?: string;
-  color?: string;
-  size?: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
+  productName: string;
+  variantId?: string | null;
+  variantName?: string | null;
+  orderedQuantity: string;
+  unitPrice: string;
+  lineTotal: string;
+  lineDeliveryStatus: string;
 }
 
-export type OrderStatus = 'Order Confirmed' | 'Processing at Trichy Hub' | 'Dispatched' | 'In Transit' | 'Out for Delivery' | 'Delivered' | 'Cancelled' | 'confirmed';
-
-export interface OrderTimelineEvent {
-  status: string;
-  date: string;
-  description: string;
-  location?: string;
-  completed: boolean;
-  current?: boolean;
+export interface OrderPayment {
+  status: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
+  amountPaid: string;
+  amountDue: string;
 }
 
 export interface Order {
   id: string;
-  orderNumber?: string;
-  date?: string;
-  createdAt?: string;
-  items: any[];
-  subtotal: number;
-  discount: number;
-  shipping: number;
-  tax?: number;
-  total: number;
-  paymentMethod: string;
-  paymentStatus: string;
-  orderStatus?: OrderStatus;
-  status?: string;
-  shippingAddress: UserAddress;
-  estimatedDelivery?: string;
-  trackingNumber?: string;
-  courierName?: string;
-  courierPartner?: string;
-  timeline?: OrderTimelineEvent[];
+  orderNumber: string;
+  documentStatus: string;
+  salesChannel: string;
+  createdAt: string;
+  total: string;
+  lines: OrderLine[];
+  deliveryAddress: (DeliveryAddress & { line1: string }) | null;
+  payment: OrderPayment;
 }
 
+export interface OrderListItem {
+  id: string;
+  orderNumber: string;
+  documentStatus: string;
+  salesChannel: string;
+  createdAt: string;
+}
+
+// Real VEYONN customer profile (CustomerProfileResponseDto) — deliberately
+// has no phone/bikeModel/avatar/riderPoints/memberSince: none of that
+// exists on the backend's customer-auth capability, so none of it is
+// fabricated here. See the API Gap Report for what a "rider profile" would
+// need from VEYONN to become real.
 export interface UserProfile {
   id: string;
-  name: string;
+  contactId: string;
   email: string;
-  phone: string;
-  bikeModel?: string;
-  ridingExperienceYears?: number;
-  avatar?: string;
-  memberSince?: string;
-  riderPoints: number;
-  addresses?: UserAddress[];
+  displayName: string;
+  lastLoginAt: string | null;
+  createdAt: string;
 }
 
 export type User = UserProfile;
@@ -237,6 +230,7 @@ export interface RidingGuide {
 export interface FilterState {
   category?: string;
   subcategory?: string;
+  /** Brand ids. The catalog API filters on one brand at a time. */
   brand: string[];
   priceRange: [number, number];
   sizes: string[];

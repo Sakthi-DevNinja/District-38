@@ -5,6 +5,7 @@ import { useBrands } from '../hooks/use-brands';
 import { useProducts } from '../hooks/use-products';
 import { adaptListItem, slugifyCategoryName as slugify } from '../lib/product-adapter';
 import { ProductGrid } from '../components/commerce/ProductGrid';
+import { usePageMeta } from '../hooks/use-page-meta';
 
 interface BrandsPageProps {
   brandSlug?: string;
@@ -22,6 +23,16 @@ export const BrandsPage: React.FC<BrandsPageProps> = ({ brandSlug }) => {
     : null;
 
   const brandProductsQuery = useProducts({ brandId: selectedBrand?.id, limit: 100 });
+
+  usePageMeta({
+    title: brandSlug
+      ? (selectedBrand ? `${selectedBrand.name} — Authorised Dealer` : 'Brand')
+      : 'Shop by Brand',
+    description: brandSlug
+      ? (selectedBrand?.description ?? `Shop genuine ${selectedBrand?.name ?? ''} motorcycle gear at District 38, an authorised dealer.`)
+      : 'District 38 is an authorised dealer for MT Helmets, Axor, Rynox, SMK, ViaTerra, Motul, and more.',
+    path: brandSlug ? `/brands/${brandSlug}` : '/brands'
+  }, [brandSlug, selectedBrand?.id]);
 
   if (brandSlug) {
     if (brandsQuery.isLoading) {
@@ -69,7 +80,7 @@ export const BrandsPage: React.FC<BrandsPageProps> = ({ brandSlug }) => {
             </h2>
             <button
               onClick={() => {
-                updateShopFilters({ brand: [selectedBrand.name] });
+                updateShopFilters({ brand: [selectedBrand.id] });
                 navigate('/shop');
               }}
               className="text-xs font-bold text-orange-600 hover:underline"

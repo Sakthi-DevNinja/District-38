@@ -1,151 +1,123 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  SlidersHorizontal, 
-  ChevronDown, 
-  X, 
-  RotateCcw, 
-  Flame, 
-  ShieldCheck, 
-  Sparkles,
-  Search,
+import {
+  SlidersHorizontal,
+  X,
   Grid,
-  Columns
+  Columns,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { useProducts } from '../hooks/use-products';
 import { useCategories } from '../hooks/use-categories';
+import { useBrands } from '../hooks/use-brands';
 import { adaptListItem, slugifyCategoryName } from '../lib/product-adapter';
 import { ProductGrid } from '../components/commerce/ProductGrid';
-import { FilterDrawer } from '../components/commerce/FilterDrawer';
+import { FilterDrawer, NO_PRICE_LIMIT } from '../components/commerce/FilterDrawer';
+import { usePageMeta } from '../hooks/use-page-meta';
+import { CatalogSort } from '../lib/api/types';
+import { FilterState } from '../types';
+
+const PAGE_SIZE = 24;
+
+const SORT_PARAM: Record<FilterState['sortBy'], CatalogSort> = {
+  newest: 'newest',
+  'price-asc': 'price_asc',
+  'price-desc': 'price_desc',
+  // Not offered by the catalog API; fall back to newest first.
+  featured: 'newest',
+  rating: 'newest',
+  discount: 'newest'
+};
+
+// 1 … 4 5 6 … 12 — the current page, its neighbours, and both ends.
+function pageNumbers(current: number, total: number): (number | 'gap')[] {
+  const pages = new Set([1, total, current - 1, current, current + 1]);
+  const sorted = [...pages].filter(p => p >= 1 && p <= total).sort((a, b) => a - b);
+  const result: (number | 'gap')[] = [];
+  sorted.forEach((p, i) => {
+    if (i > 0 && p - sorted[i - 1] > 1) result.push('gap');
+    result.push(p);
+  });
+  return result;
+}
 
 interface ShopPageProps {
   initialCategory?: string;
 }
 
 export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
-  const { 
-    shopFilters, 
-    updateShopFilters, 
-    resetShopFilters, 
-    routeParams, 
-    currentRoute,
-    navigate 
+  const {
+    shopFilters,
+    updateShopFilters,
+    resetShopFilters,
+    currentRoute
   } = useShop();
 
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [columns, setColumns] = useState<3 | 4>(4);
 
-  // Sync category if passed
   const effectiveCategory = initialCategory || shopFilters.category;
-
-  // Real VEYONN catalog — the fetched page IS "the catalog" for filtering
-  // purposes (matches the previous static-array approach); category,
-  // price, stock, and sale filters all continue to apply client-side over
-  // this page, same as before. Only q is passed server-side (a real
-  // filter VEYONN's public API supports) — category/brand stay
-  // client-side here because shopFilters stores names/slugs the API
-  // doesn't accept directly (see FilterDrawer's own note on this).
-  const productsQuery = useProducts({ q: shopFilters.searchQuery, limit: 100 });
   const categoriesQuery = useCategories();
-  const allProducts = useMemo(
-    () => (productsQuery.data?.items ?? []).map(adaptListItem),
-    [productsQuery.data],
-  );
+  const brandsQuery = useBrands();
 
-  // Compute active category name or search title if applicable — VEYONN
-  // categories carry no slug of their own, so this matches by a
-  // client-derived slug of the real category name (see
-  // slugifyCategoryName's own doc comment).
+  // Routes carry a category slug; VEYONN categories have no slug of their
+  // own, so it is matched against a slug of the real category name.
   const activeCategory = (categoriesQuery.data ?? []).find(
     (c) => slugifyCategoryName(c.name) === effectiveCategory,
   );
+  const waitingForCategory = !!effectiveCategory && categoriesQuery.isLoading;
+  const unknownCategory = !!effectiveCategory && !categoriesQuery.isLoading && !activeCategory;
 
-  // Filtered and Sorted products
-  const filteredProducts = useMemo(() => {
-    return allProducts.filter(product => {
-      // 1. Search Query
-      if (shopFilters.searchQuery) {
-        const query = shopFilters.searchQuery.toLowerCase();
-        const matchName = product.name.toLowerCase().includes(query);
-        const matchBrand = product.brand.toLowerCase().includes(query);
-        const matchSub = product.subcategory.toLowerCase().includes(query);
-        const matchFeature = product.features.some(f => f.toLowerCase().includes(query));
-        if (!matchName && !matchBrand && !matchSub && !matchFeature) return false;
-      }
+  const filterParams = {
+    q: shopFilters.searchQuery || undefined,
+    productCategoryId: activeCategory?.id,
+    brandId: shopFilters.brand[0],
+    priceMax: shopFilters.priceRange[1] < NO_PRICE_LIMIT ? shopFilters.priceRange[1] : undefined,
+    inStock: shopFilters.inStockOnly || undefined,
+    sort: SORT_PARAM[shopFilters.sortBy]
+  };
 
-      // 2. Category
-      if (effectiveCategory && product.category !== effectiveCategory) {
-        return false;
-      }
+  // Changing any filter starts again from page 1, without an extra render.
+  const filterKey = JSON.stringify([filterParams, effectiveCategory]);
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
 
-      // 3. Subcategory
-      if (shopFilters.subcategory && product.subcategory !== shopFilters.subcategory) {
-        return false;
-      }
+  const productsQuery = useProducts({ ...filterParams, page, limit: PAGE_SIZE, facets: true });
+  const result = productsQuery.data;
+  const facets = result?.facets;
 
-      // 4. Brands
-      if (shopFilters.brand.length > 0 && !shopFilters.brand.includes(product.brand)) {
-        return false;
-      }
+  const products = useMemo(
+    () => (unknownCategory || waitingForCategory ? [] : (result?.items ?? []).map(adaptListItem)),
+    [result, unknownCategory, waitingForCategory],
+  );
+  const total = unknownCategory ? 0 : (result?.total ?? 0);
+  const totalPages = unknownCategory ? 0 : (result?.totalPages ?? 0);
 
-      // 5. Price Range
-      if (product.price < shopFilters.priceRange[0] || product.price > shopFilters.priceRange[1]) {
-        return false;
-      }
+  const goToPage = (next: number) => {
+    setPageState({ key: filterKey, page: next });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-      // 6. Certifications
-      if (shopFilters.certifications.length > 0) {
-        if (!product.certifications || !product.certifications.some(c => shopFilters.certifications.includes(c as any))) {
-          return false;
-        }
-      }
+  usePageMeta({
+    title: activeCategory ? `${activeCategory.name} — Shop` : 'Shop All Motorcycle Gear',
+    description: activeCategory
+      ? (activeCategory.description ?? `Shop ${activeCategory.name} at District 38 — authorised, genuine motorcycle riding gear.`)
+      : 'Browse the full District 38 catalog — ECE 22.06 helmets, riding jackets, gloves, and touring accessories.',
+    path: currentRoute
+  }, [activeCategory?.id, currentRoute]);
 
-      // 7. Riding Styles
-      if (shopFilters.ridingStyles.length > 0) {
-        if (!product.ridingStyles || !product.ridingStyles.some(s => shopFilters.ridingStyles.includes(s as any))) {
-          return false;
-        }
-      }
+  const brandName = (id: string) => (brandsQuery.data ?? []).find(b => b.id === id)?.name ?? 'Selected brand';
 
-      // 8. In Stock Only
-      if (shopFilters.inStockOnly && !product.inStock) {
-        return false;
-      }
-
-      // 9. On Sale Only
-      if (shopFilters.onSaleOnly && (!product.discountPercent || product.discountPercent <= 0)) {
-        return false;
-      }
-
-      return true;
-    }).sort((a, b) => {
-      switch (shopFilters.sortBy) {
-        case 'price-asc':
-          return a.price - b.price;
-        case 'price-desc':
-          return b.price - a.price;
-        case 'rating':
-          return (b.rating ?? 0) - (a.rating ?? 0);
-        case 'newest':
-          return (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0);
-        case 'featured':
-        default:
-          return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
-      }
-    });
-  }, [allProducts, shopFilters]);
-
-  // Active filter count
-  const activeFiltersCount = 
+  const activeFiltersCount =
     (shopFilters.category ? 1 : 0) +
-    (shopFilters.subcategory ? 1 : 0) +
     shopFilters.brand.length +
-    shopFilters.certifications.length +
-    shopFilters.ridingStyles.length +
     (shopFilters.inStockOnly ? 1 : 0) +
-    (shopFilters.onSaleOnly ? 1 : 0) +
     (shopFilters.searchQuery ? 1 : 0) +
-    (shopFilters.priceRange[1] < 40000 ? 1 : 0);
+    (shopFilters.priceRange[1] < NO_PRICE_LIMIT ? 1 : 0);
+
+  const firstShown = (page - 1) * PAGE_SIZE + 1;
+  const lastShown = Math.min(page * PAGE_SIZE, total);
 
   return (
     <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-8 space-y-8">
@@ -154,14 +126,12 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
         <div className="relative z-10 max-w-2xl">
           <div className="text-xs font-bold text-orange-400 uppercase tracking-widest mb-1.5 flex items-center space-x-1.5">
             <span>District 38 Catalog</span>
-            <span>•</span>
-            <span>Trichy Hub</span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
-            {shopFilters.searchQuery 
+            {shopFilters.searchQuery
               ? `Results for "${shopFilters.searchQuery}"`
-              : activeCategory 
-              ? activeCategory.name 
+              : activeCategory
+              ? activeCategory.name
               : 'All Motorcycle Riding Gear'}
           </h1>
           <p className="text-xs sm:text-sm text-neutral-400 mt-2 leading-relaxed">
@@ -172,7 +142,6 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
 
       {/* 2. Top Bar: Controls & Active Chips */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-neutral-200">
-        {/* Left: Filter Toggle for Mobile + Results count */}
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setIsMobileFilterOpen(true)}
@@ -188,24 +157,29 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
           </button>
 
           <span className="text-xs font-semibold text-neutral-500">
-            Showing <strong className="text-neutral-900">{filteredProducts.length}</strong> products
+            {productsQuery.isLoading && !result ? (
+              'Loading products…'
+            ) : total === 0 ? (
+              'No products'
+            ) : totalPages > 1 ? (
+              <>Showing <strong className="text-neutral-900">{firstShown}–{lastShown}</strong> of <strong className="text-neutral-900">{total}</strong> products</>
+            ) : (
+              <><strong className="text-neutral-900">{total}</strong> {total === 1 ? 'product' : 'products'}</>
+            )}
           </span>
         </div>
 
-        {/* Right: Sort & Grid layout switchers */}
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2 text-xs">
             <span className="text-neutral-500 font-medium hidden sm:inline">Sort by:</span>
             <select
-              value={shopFilters.sortBy}
-              onChange={(e) => updateShopFilters({ sortBy: e.target.value as any })}
+              value={SORT_PARAM[shopFilters.sortBy] === 'newest' ? 'newest' : shopFilters.sortBy}
+              onChange={(e) => updateShopFilters({ sortBy: e.target.value as FilterState['sortBy'] })}
               className="px-3 py-2 bg-white border border-neutral-300 rounded-xl text-xs font-semibold text-neutral-800 focus:outline-none focus:border-orange-500"
             >
-              <option value="featured">Featured & Recommended</option>
+              <option value="newest">Newest First</option>
               <option value="price-asc">Price: Low to High</option>
               <option value="price-desc">Price: High to Low</option>
-              <option value="rating">Highest Rated</option>
-              <option value="newest">Newest Drops</option>
             </select>
           </div>
 
@@ -232,11 +206,11 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
       {activeFiltersCount > 0 && (
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <span className="text-xs font-bold text-neutral-400">Active Filters:</span>
-          
+
           {shopFilters.category && (
             <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-medium border border-neutral-200">
               <span>Category: {activeCategory?.name || shopFilters.category}</span>
-              <button onClick={() => updateShopFilters({ category: undefined })} className="hover:text-red-600">
+              <button onClick={() => updateShopFilters({ category: undefined })} className="hover:text-red-600" aria-label="Remove category filter">
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -245,61 +219,42 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
           {shopFilters.searchQuery && (
             <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-orange-100 text-orange-800 text-xs font-medium border border-orange-200">
               <span>Query: "{shopFilters.searchQuery}"</span>
-              <button onClick={() => updateShopFilters({ searchQuery: undefined })} className="hover:text-red-600">
+              <button onClick={() => updateShopFilters({ searchQuery: '' })} className="hover:text-red-600" aria-label="Clear search">
                 <X className="w-3 h-3" />
               </button>
             </span>
           )}
 
-          {shopFilters.brand.map(b => (
-            <span key={b} className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-medium border border-neutral-200">
-              <span>Brand: {b}</span>
-              <button 
-                onClick={() => updateShopFilters({ brand: shopFilters.brand.filter(item => item !== b) })}
+          {shopFilters.brand.map(id => (
+            <span key={id} className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-medium border border-neutral-200">
+              <span>Brand: {brandName(id)}</span>
+              <button
+                onClick={() => updateShopFilters({ brand: [] })}
                 className="hover:text-red-600"
+                aria-label="Remove brand filter"
               >
                 <X className="w-3 h-3" />
               </button>
             </span>
           ))}
 
-          {shopFilters.certifications.map(c => (
-            <span key={c} className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-medium border border-emerald-200">
-              <span>Cert: {c}</span>
-              <button 
-                onClick={() => updateShopFilters({ certifications: shopFilters.certifications.filter(item => item !== c) })}
+          {shopFilters.priceRange[1] < NO_PRICE_LIMIT && (
+            <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-medium border border-neutral-200">
+              <span>Up to ₹{shopFilters.priceRange[1].toLocaleString('en-IN')}</span>
+              <button
+                onClick={() => updateShopFilters({ priceRange: [shopFilters.priceRange[0], NO_PRICE_LIMIT] })}
                 className="hover:text-red-600"
+                aria-label="Remove price filter"
               >
                 <X className="w-3 h-3" />
               </button>
             </span>
-          ))}
-
-          {shopFilters.ridingStyles.map(s => (
-            <span key={s} className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-medium border border-neutral-200">
-              <span>Style: {s}</span>
-              <button 
-                onClick={() => updateShopFilters({ ridingStyles: shopFilters.ridingStyles.filter(item => item !== s) })}
-                className="hover:text-red-600"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
+          )}
 
           {shopFilters.inStockOnly && (
             <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-medium border border-neutral-200">
               <span>In Stock Only</span>
-              <button onClick={() => updateShopFilters({ inStockOnly: false })} className="hover:text-red-600">
-                <X className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-
-          {shopFilters.onSaleOnly && (
-            <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-orange-100 text-orange-800 text-xs font-medium border border-orange-200">
-              <span>On Sale Only</span>
-              <button onClick={() => updateShopFilters({ onSaleOnly: false })} className="hover:text-red-600">
+              <button onClick={() => updateShopFilters({ inStockOnly: false })} className="hover:text-red-600" aria-label="Remove in-stock filter">
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -316,27 +271,65 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
 
       {/* 3. Main Content: Desktop Sidebar + Product Grid */}
       <div className="flex gap-8 items-start">
-        {/* Desktop Sticky Sidebar */}
         <div className="hidden lg:block sticky top-24">
-          <FilterDrawer isOpen={true} onClose={() => {}} isDesktopSidebar={true} />
+          <FilterDrawer isOpen={true} onClose={() => {}} isDesktopSidebar={true} facets={facets} />
         </div>
 
-        {/* Mobile Slide-in Drawer */}
         <FilterDrawer
           isOpen={isMobileFilterOpen}
           onClose={() => setIsMobileFilterOpen(false)}
+          facets={facets}
+          resultCount={total}
         />
 
-        {/* Products Grid */}
-        <div className="flex-1">
+        <div className="flex-1 space-y-8">
           <ProductGrid
-            products={filteredProducts}
-            isLoading={productsQuery.isLoading}
+            products={products}
+            isLoading={productsQuery.isLoading || waitingForCategory}
             error={productsQuery.error}
             columns={columns}
-            emptyTitle="No gear matches these specifications"
-            emptyDescription="We couldn't find items matching your active combination of brand, safety certification, and price filters."
+            emptyTitle="No gear matches these filters"
+            emptyDescription="Try another brand, a higher price limit, or clear the filters to see everything."
           />
+
+          {totalPages > 1 && (
+            <nav className="flex items-center justify-center gap-1.5" aria-label="Pagination">
+              <button
+                onClick={() => goToPage(page - 1)}
+                disabled={page <= 1}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-semibold text-neutral-800 hover:border-neutral-900 disabled:opacity-40 disabled:hover:border-neutral-300"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Previous</span>
+              </button>
+              {pageNumbers(page, totalPages).map((p, i) =>
+                p === 'gap' ? (
+                  <span key={`gap-${i}`} className="px-1 text-xs text-neutral-400">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p)}
+                    aria-current={p === page ? 'page' : undefined}
+                    className={`min-w-9 px-3 py-2 rounded-xl text-xs font-bold ${
+                      p === page
+                        ? 'bg-neutral-950 text-white'
+                        : 'border border-neutral-300 bg-white text-neutral-800 hover:border-neutral-900'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+              <button
+                onClick={() => goToPage(page + 1)}
+                disabled={page >= totalPages}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl border border-neutral-300 bg-white text-xs font-semibold text-neutral-800 hover:border-neutral-900 disabled:opacity-40 disabled:hover:border-neutral-300"
+              >
+                <span className="hidden sm:inline">Next</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </nav>
+          )}
         </div>
       </div>
     </div>

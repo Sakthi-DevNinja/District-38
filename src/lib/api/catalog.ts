@@ -17,8 +17,13 @@ export function listProducts(params: ListProductsParams = {}): Promise<ProductLi
     q: params.q,
     productCategoryId: params.productCategoryId,
     brandId: params.brandId,
-    cursor: params.cursor,
+    priceMin: params.priceMin,
+    priceMax: params.priceMax,
+    inStock: params.inStock ? 'true' : undefined,
+    sort: params.sort,
+    page: params.page,
     limit: params.limit,
+    facets: params.facets ? 'true' : undefined,
   })
 }
 

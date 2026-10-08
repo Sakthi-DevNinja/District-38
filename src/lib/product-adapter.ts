@@ -54,11 +54,12 @@ export function slugifyCategoryName(name: string): string {
 function toVariant(v: PublicProductDetail['variants'][number]): ProductVariant {
   return {
     id: v.id,
-    name: v.name ?? 'Option',
-    sku: v.id,
+    name: v.name ?? v.sku,
+    sku: v.sku,
     inStock: v.inStock,
-    stockCount: v.inStock ? 1 : 0,
+    stockCount: v.availableQuantity,
     price: v.price.sellingPrice,
+    originalPrice: v.price.mrp ?? undefined,
   }
 }
 
@@ -82,8 +83,8 @@ function baseFields(dto: PublicProductListItem): Product {
     isOnSale: dto.price.isOnSale,
     inStock: dto.inStock,
     stockCount: 0,
-    images: dto.thumbnail ? [resolveImageUrl(dto.thumbnail.url)] : [],
-    thumbnail: dto.thumbnail ? resolveImageUrl(dto.thumbnail.url) : '',
+    images: dto.thumbnail ? [resolveImageUrl(dto.thumbnail.mediumUrl)] : [],
+    thumbnail: dto.thumbnail ? resolveImageUrl(dto.thumbnail.thumbnailUrl) : '',
     shortDescription: dto.shortDescription ?? '',
     description: dto.shortDescription ?? '',
     features: [],
@@ -101,7 +102,9 @@ export function adaptListItem(dto: PublicProductListItem): Product {
 }
 
 export function adaptDetail(dto: PublicProductDetail): Product {
-  const images = dto.images.map((img) => resolveImageUrl(img.url))
+  const images = [...dto.images]
+    .sort((a, b) => a.position - b.position)
+    .map((img) => resolveImageUrl(img.mediumUrl))
   return {
     ...baseFields(dto),
     description: dto.description ?? dto.shortDescription ?? '',

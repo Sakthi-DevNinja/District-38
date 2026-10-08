@@ -2,14 +2,8 @@ import { useAsync } from './use-async'
 import { listProducts } from '../lib/api/catalog'
 import { ListProductsParams } from '../lib/api/types'
 
-// Note: only `q`, `productCategoryId`, `brandId`, `cursor`, and `limit` are
-// real server-side filters (the actual VEYONN public catalog contract).
-// Price range, in-stock-only, on-sale-only, and sort order are applied
-// client-side over whatever page this returns — see ShopPage's own
-// filtering for exactly which of the pre-existing filter UI still applies.
+// Every filter, sort and page is applied by the server, so callers get the
+// exact page they asked for along with the total match count.
 export function useProducts(params: ListProductsParams) {
-  return useAsync(
-    () => listProducts(params),
-    [params.q, params.productCategoryId, params.brandId, params.cursor, params.limit],
-  )
+  return useAsync(() => listProducts(params), [JSON.stringify(params)])
 }
