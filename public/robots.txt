@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /cart
+Disallow: /checkout
+Disallow: /account
+Disallow: /wishlist
+Disallow: /login
+Disallow: /register
+Disallow: /order-success
+
+# Regenerate public/sitemap.xml with `npm run sitemap` whenever the catalog
+# changes (see scripts/generate-sitemap.mjs — requires SITE_URL and
+# VITE_API_BASE_URL).
+Sitemap: https://district38.co.in/sitemap.xml

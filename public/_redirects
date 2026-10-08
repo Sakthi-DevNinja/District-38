@@ -1,0 +1,5 @@
+# Netlify SPA fallback — serves index.html for any path that isn't a real
+# static file, so direct links and refreshes on routes like
+# /products/axor-apex-pro work instead of 404ing. Harmless/unused on any
+# other host. See src/context/ShopContext.tsx for the routing this backs.
+/*  /index.html  200

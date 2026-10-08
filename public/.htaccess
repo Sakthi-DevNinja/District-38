@@ -1,0 +1,16 @@
+# Apache SPA fallback — for Hostinger shared/standard hosting (and any
+# other Apache-based static host). Serves index.html for any path that
+# isn't a real file on disk, so direct links/refreshes on routes like
+# /products/axor-apex-pro work instead of 404ing. See
+# src/context/ShopContext.tsx for the routing this backs, and
+# README.md's Deployment section for the equivalent on other hosts.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Don't rewrite requests for real files or directories (JS/CSS/images/etc.)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+
+  RewriteRule ^ index.html [L]
+</IfModule>

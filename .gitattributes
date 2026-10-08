@@ -1,0 +1,14 @@
+# Force binary handling for media assets so git's line-ending/encoding
+# normalization (core.autocrlf) never touches their raw bytes. Without this,
+# a binary file can get silently corrupted if it's ever misdetected as text.
+*.mp4 binary
+*.mov binary
+*.webm binary
+*.webp binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
