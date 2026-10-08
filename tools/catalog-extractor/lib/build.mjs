@@ -268,7 +268,7 @@ export function buildStaging(
 
     // Every gallery image of the kept listing, in the site's order.
     const imageUrls = [...new Set(primary.images)]
-    imagePlans.push({ productCode, importKey, urls: imageUrls })
+    imagePlans.push({ productCode, importKey, urls: imageUrls, pageUrl: primary.sourceUrl })
 
     // What the owner must look at before approving.
     const problems = []

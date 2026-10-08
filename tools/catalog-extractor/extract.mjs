@@ -117,7 +117,7 @@ async function run(options) {
     keepTags: config.keepTags,
   })
 
-  let images = { rows: [], downloaded: 0, reused: 0 }
+  let images = { rows: [], downloaded: 0, reused: 0, recovered: 0, failures: [] }
   if (!options['skip-images']) {
     console.log(`\nDownloading images for ${staging.imagePlans.length} products…`)
     const imageFetcher = new PoliteFetcher({ rawDir: join(out, 'raw', '_images'), delayMs: Number(config.imageDelayMs ?? 500), contact: config.contact })
@@ -133,11 +133,13 @@ async function run(options) {
   await writeCsv(join(reportsDir, 'needs-review.csv'), ['productCode', 'name', 'problems', 'sourceUrls'], staging.issues)
   // Products with no photo on any source: imported as unpublished drafts;
   // staff add a photo in Pilot before publishing.
-  await writeCsv(
-    join(reportsDir, 'needs-photo.csv'),
-    ['productCode', 'name', 'sourceUrls'],
-    staging.issues.filter((i) => i.problems.includes('no images')),
-  )
+  // Includes products whose every image failed to download.
+  const withImages = new Set(images.rows.map((r) => r.productCode))
+  const needsPhoto = options['skip-images']
+    ? staging.issues.filter((i) => i.problems.includes('no images'))
+    : staging.products.filter((p) => !withImages.has(p.productCode))
+  await writeCsv(join(reportsDir, 'needs-photo.csv'), ['productCode', 'name', 'sourceUrls'], needsPhoto)
+  await writeCsv(join(reportsDir, 'failed-images.csv'), ['productCode', 'url'], images.failures)
   await writeCsv(join(reportsDir, 'skipped-duplicates.csv'), ['productCode', 'name', 'keptSource', 'keptUrl', 'keptPrice', 'skippedSource', 'skippedUrl', 'skippedPrice'], staging.duplicates)
   await writeCsv(join(reportsDir, 'unmapped-categories.csv'), ['sourceCategories', 'products'], staging.unmappedCategories)
 
@@ -145,7 +147,8 @@ async function run(options) {
     `Products: ${staging.products.length} (from ${sourceResults.reduce((n, s) => n + s.products.length, 0)} source listings)`,
     `Sizes/variants: ${staging.variants.length}`,
     `Brands: ${staging.brands.length}, categories: ${staging.categories.length}`,
-    `Images: ${images.rows.length} (${images.downloaded} downloaded, ${images.reused} already on disk)${options['skip-images'] ? ' — skipped' : ''}`,
+    `Images: ${images.rows.length} (${images.downloaded} downloaded, ${images.reused} already on disk, ${images.recovered} recovered from resized copies, ${images.failures.length} unavailable)${options['skip-images'] ? ' — skipped' : ''}`,
+    `Products without any photo: ${needsPhoto.length} (reports/needs-photo.csv)`,
     `Needs review: ${staging.issues.length} products (reports/needs-review.csv)`,
     `Duplicates skipped: ${staging.duplicates.length} (reports/skipped-duplicates.csv)`,
     `Unmapped source categories: ${staging.unmappedCategories.length} (reports/unmapped-categories.csv)`,

@@ -128,6 +128,12 @@ export class PoliteFetcher {
       await this.throttle()
       try {
         const res = await fetch(url, { headers: { 'User-Agent': this.userAgent } })
+        // A missing file won't appear on a retry.
+        if (res.status === 404 || res.status === 410) {
+          this.stats.failed++
+          this.log(`  image missing (${res.status}) ${url}`)
+          return null
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         this.stats.network++
         return { contentType: res.headers.get('content-type') ?? '', buffer: Buffer.from(await res.arrayBuffer()) }

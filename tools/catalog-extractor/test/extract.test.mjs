@@ -149,7 +149,7 @@ test('end to end: two shops into a staging folder, duplicates skipped', async ()
 
     const images = await read('staging/images.csv')
     assert.deepEqual(images.filter((i) => i.productCode === 'AXOR-APEX-PRO').map((i) => i.localFile), ['AXOR-APEX-PRO/01.png', 'AXOR-APEX-PRO/02.png'])
-    assert.deepEqual(await readdir(join(out, 'staging', 'images', 'AXOR-APEX-PRO')), ['01.png', '02.png'])
+    assert.deepEqual((await readdir(join(out, 'staging', 'images', 'AXOR-APEX-PRO'))).filter((f) => !f.startsWith('.')), ['01.png', '02.png'])
 
     const header = (await readFile(join(out, 'staging', 'products.csv'), 'utf8')).split('\r\n')[0]
     assert.equal(header, '﻿productCode,importKey,name,brand,categoryPath,shortDescription,description,sellingPrice,mrp,hsn,certification,tags,sourceUrls,uom,published,status')
@@ -210,4 +210,34 @@ test('throttlerz-style product: brand from category, fitment tag, title case, he
   assert.equal(p.tags, 'fits-ktm', 'SEO tags dropped, fitment kept')
   assert.deepEqual(staging.variants.map((v) => v.size), ['M', 'L'], 'only the combinations the site sells')
   assert.equal(staging.unmappedCategories.length, 0)
+})
+
+test('missing WordPress original: largest resized copy from the product page is used', async () => {
+  const { PoliteFetcher } = await import('../lib/fetcher.mjs')
+  const { downloadImages } = await import('../lib/images.mjs')
+  const shop = await serve((req, res) => {
+    const u = new URL(req.url, 'http://x')
+    if (u.pathname === '/robots.txt') return res.end('')
+    if (u.pathname === '/product/visor/') {
+      return res.end(`<img src="${shop.url}/wp-content/uploads/2026/05/VISOR-300x300.webp"><img src="${shop.url}/wp-content/uploads/2026/05/VISOR-1024x1024.webp">`)
+    }
+    if (u.pathname === '/wp-content/uploads/2026/05/VISOR-1024x1024.webp') { res.setHeader('content-type', 'image/png'); return res.end(png(9, 9, 9)) }
+    if (u.pathname === '/wp-content/uploads/2026/05/OK.png') { res.setHeader('content-type', 'image/png'); return res.end(png(1, 2, 3)) }
+    res.statusCode = 404; res.end()
+  })
+  try {
+    const dir = await mkdtemp(join(tmpdir(), 'd38-img-'))
+    const fetcher = new PoliteFetcher({ rawDir: join(dir, 'raw'), delayMs: 0, log: () => {} })
+    const plan = { productCode: 'VISOR', importKey: 'x__visor', pageUrl: `${shop.url}/product/visor/`, urls: [`${shop.url}/wp-content/uploads/2026/05/VISOR.webp`, `${shop.url}/wp-content/uploads/2026/05/GONE.webp`, `${shop.url}/wp-content/uploads/2026/05/OK.png`] }
+    const first = await downloadImages(fetcher, [plan], dir, { log: () => {} })
+    assert.equal(first.recovered, 1)
+    assert.equal(first.failures.length, 1, 'GONE has no copy anywhere')
+    assert.deepEqual(first.rows.map((r) => [r.position, r.localFile]), [[1, 'VISOR/01.png'], [2, 'VISOR/02.png']])
+    // A re-run matches files by URL: nothing is downloaded or renumbered.
+    const again = await downloadImages(fetcher, [plan], dir, { log: () => {} })
+    assert.equal(again.reused, 2)
+    assert.deepEqual(again.rows.map((r) => r.localFile), ['VISOR/01.png', 'VISOR/02.png'])
+  } finally {
+    shop.server.close()
+  }
 })
