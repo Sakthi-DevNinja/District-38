@@ -1,0 +1,9 @@
+{
+  "Full Face Helmets": { "path": "Helmets > Full Face", "hsn": "65061010" },
+  "Modular Helmets": { "path": "Helmets > Modular", "hsn": "65061010" },
+  "Open Face Helmets": { "path": "Helmets > Open Face", "hsn": "65061010" },
+  "Riding Jackets": { "path": "Riding Gear > Jackets", "hsn": "62102000" },
+  "Riding Gloves": "Riding Gear > Gloves",
+  "Tail Bags": "Bike Accessories > Luggage",
+  "Chain Lube": "Bike Care > Chain Care"
+}

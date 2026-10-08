@@ -1,0 +1,20 @@
+{
+  "contact": "district38ops@gmail.com",
+  "delayMs": 1500,
+  "imageDelayMs": 500,
+  "categoryMap": "category-map.json",
+  "brandMap": "brand-map.json",
+  "sources": [
+    {
+      "name": "site1",
+      "url": "https://first-source-site.example",
+      "adapter": "auto"
+    },
+    {
+      "name": "site2",
+      "url": "https://second-source-site.example",
+      "adapter": "auto",
+      "productUrlPattern": "/product/"
+    }
+  ]
+}

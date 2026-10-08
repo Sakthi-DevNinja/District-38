@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Catalog extractor output: downloaded pages, snapshots and images
+catalog-data/
