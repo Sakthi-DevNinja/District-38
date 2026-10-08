@@ -8,9 +8,8 @@ import {
   X, 
   ChevronRight, 
   MapPin, 
-  PhoneCall, 
-  ShieldCheck, 
-  User, 
+  PhoneCall,
+  User,
   Flame,
   FileText,
   HelpCircle
@@ -139,7 +138,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ isOpen: propIsOpen, onClos
               {/* Account Quick Card */}
               {isAuthenticated ? (
                 <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200">
-                  <div className="text-xs font-bold text-neutral-900">{currentUser?.name}</div>
+                  <div className="text-xs font-bold text-neutral-900">{currentUser?.displayName}</div>
                   <div className="text-[11px] text-neutral-500">{currentUser?.email}</div>
                   <div className="mt-2 flex space-x-2">
                     <button
@@ -261,7 +260,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ isOpen: propIsOpen, onClos
                 >
                   <MapPin className="w-4 h-4 text-orange-600" />
                   <div className="text-left">
-                    <div>Trichy Retail Store</div>
+                    <div>Visit Our Retail Store</div>
                     <div className="text-[10px] text-neutral-500 font-normal">75/c Alsa Complex, Salai Road</div>
                   </div>
                 </button>

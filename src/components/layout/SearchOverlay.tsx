@@ -4,9 +4,8 @@ import {
   X, 
   ArrowRight, 
   Clock, 
-  TrendingUp, 
-  ShieldCheck, 
-  Tag, 
+  TrendingUp,
+  Tag,
   BookOpen 
 } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
@@ -18,12 +17,13 @@ import { RIDING_GUIDES } from '../../data/guides';
 
 export const SearchOverlay: React.FC = () => {
   const { 
-    isSearchOpen, 
-    setIsSearchOpen, 
-    navigate, 
-    recentSearches, 
-    addRecentSearch, 
-    clearRecentSearches 
+    isSearchOpen,
+    setIsSearchOpen,
+    navigate,
+    updateShopFilters,
+    recentSearches,
+    addRecentSearch,
+    clearRecentSearches
   } = useShop();
 
   const [inputVal, setInputVal] = useState('');
@@ -68,7 +68,8 @@ export const SearchOverlay: React.FC = () => {
     if (!term.trim()) return;
     addRecentSearch(term);
     setIsSearchOpen(false);
-    navigate(`/shop?q=${encodeURIComponent(term)}`);
+    updateShopFilters({ searchQuery: term.trim() });
+    navigate('/shop');
   };
 
   return (
@@ -314,7 +315,7 @@ export const SearchOverlay: React.FC = () => {
 
                 {/* Quick Shortcuts */}
                 <div className="pt-4 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
-                  <span>Free doorstep delivery on orders above ₹2,999</span>
+                  <span>Free doorstep delivery on orders above ₹5,000</span>
                   <button 
                     onClick={() => { setIsSearchOpen(false); navigate('/offers'); }}
                     className="font-bold text-orange-600 hover:underline"

@@ -7,8 +7,8 @@ export const PRODUCT_REVIEWS: Record<string, ProductReview[]> = {
       author: 'Vigneshwaran K.',
       rating: 5,
       date: '12 August 2026',
-      title: 'Top notch ECE 22.06 protection! Visited Trichy store for sizing.',
-      comment: 'Bought this from District 38 Trichy store. The staff helped me measure my head size (58cm - Medium) and swapped cheek pads for a perfect snug fit. Zero buffeting even at 120 km/h on Chennai-Trichy highway on my Duke 390. Dropdown sun visor works like butter.',
+      title: 'Top notch ECE 22.06 protection! Visited the store for sizing.',
+      comment: 'Bought this from District 38. The staff helped me measure my head size (58cm - Medium) and swapped cheek pads for a perfect snug fit. Zero buffeting even at 120 km/h on the highway on my Duke 390. Dropdown sun visor works like butter.',
       verifiedPurchase: true,
       bikeModel: 'KTM Duke 390',
       helpfulCount: 24
@@ -58,7 +58,7 @@ export const PRODUCT_REVIEWS: Record<string, ProductReview[]> = {
       rating: 5,
       date: '02 August 2026',
       title: 'Essential maintenance kit for every rider',
-      comment: 'C1 dissolves road tar and grime in seconds. C2 lube has almost zero fling when left to settle for 20 minutes before riding. Fast delivery from Trichy hub to Coimbatore in 24 hours!',
+      comment: 'C1 dissolves road tar and grime in seconds. C2 lube has almost zero fling when left to settle for 20 minutes before riding. Fast delivery to Coimbatore in 24 hours!',
       verifiedPurchase: true,
       bikeModel: 'TVS Apache RR310',
       helpfulCount: 42

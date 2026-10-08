@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Ruler, ShieldCheck, MapPin } from 'lucide-react';
+import { X, Ruler, MapPin } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
 
 export const SizeGuideModal: React.FC = () => {
@@ -240,7 +240,7 @@ export const SizeGuideModal: React.FC = () => {
               <MapPin className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
               <div className="text-xs text-neutral-700">
                 <span className="font-bold text-neutral-900 block mb-0.5">Still unsure about sizing?</span>
-                Visit our Trichy Flagship Store on Salai Road for a <strong>free laser head measurement</strong> and trial on our motorcycle posture test rig. We also offer <strong>07-Day Size Exchanges</strong> with free reverse courier pickup.
+                Visit our Flagship Store for a <strong>free laser head measurement</strong> and trial on our motorcycle posture test rig. We also offer <strong>07-Day Size Exchanges</strong> with free reverse courier pickup.
               </div>
             </div>
           </div>

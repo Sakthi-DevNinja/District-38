@@ -39,7 +39,7 @@ export const RIDING_GUIDES: RidingGuide[] = [
         ],
         callout: {
           type: 'tip',
-          text: 'District 38 Pro Tip: Visit our physical store in Trichy for free laser-assisted head profiling and custom pad adjustments.'
+          text: 'District 38 Pro Tip: Visit our physical store for free laser-assisted head profiling and custom pad adjustments.'
         }
       }
     ],
@@ -88,7 +88,7 @@ export const RIDING_GUIDES: RidingGuide[] = [
     readTime: '4 min read',
     publishDate: 'June 2026',
     author: 'M. Arun',
-    authorRole: 'Chief Technician, District 38 Trichy',
+    authorRole: 'Chief Technician, District 38',
     coverImage: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=1200&q=80',
     excerpt: 'The proven 500-km cleaning routine, safe degreasing methods, correct chain slack tolerances, and avoiding dangerous engine-running cleaning mistakes.',
     content: [

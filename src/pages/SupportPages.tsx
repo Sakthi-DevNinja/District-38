@@ -1,13 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   MapPin, 
   Phone, 
   Mail, 
-  Clock, 
-  ShieldCheck, 
-  Truck, 
-  RotateCcw, 
-  HelpCircle, 
+  Clock,
+  HelpCircle,
   CheckCircle, 
   Send, 
   MessageSquare,
@@ -17,10 +14,18 @@ import {
 } from 'lucide-react';
 import { DISTRICT_38_STORE } from '../data/storeInfo';
 import { useShop } from '../context/ShopContext';
+import { usePageMeta } from '../hooks/use-page-meta';
+import { setStructuredData, setRobotsMeta } from '../lib/seo';
 
 // 1. About Us Page
 export const AboutUsPage: React.FC = () => {
   const { navigate } = useShop();
+
+  usePageMeta({
+    title: 'About Us',
+    description: 'The District 38 story — South India\'s motorcycle riding gear destination, authorised dealer for MT, Axor, Rynox, SMK, ViaTerra, and Motul.',
+    path: '/about'
+  }, []);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
@@ -71,6 +76,12 @@ export const AboutUsPage: React.FC = () => {
 export const ContactPage: React.FC = () => {
   const { showToast } = useShop();
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', topic: 'Gear Fitment', message: '' });
+
+  usePageMeta({
+    title: 'Contact Us',
+    description: `Visit District 38's flagship store at ${DISTRICT_38_STORE.addressLine1}, ${DISTRICT_38_STORE.city}, or reach us at ${DISTRICT_38_STORE.phone}.`,
+    path: '/contact'
+  }, []);
   const [isSent, setIsSent] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -264,6 +275,26 @@ export const FAQPage: React.FC = () => {
     }
   ];
 
+  usePageMeta({
+    title: 'Frequently Asked Questions',
+    description: 'Answers to common questions about helmet sizing, ECE certification, shipping, size exchanges, and product authenticity at District 38.',
+    path: '/faq'
+  }, []);
+
+  useEffect(() => {
+    setStructuredData('ld-faq', {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: faqs.map((faq) => ({
+        '@type': 'Question',
+        name: faq.q,
+        acceptedAnswer: { '@type': 'Answer', text: faq.a }
+      }))
+    });
+    return () => setStructuredData('ld-faq', null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       <div className="text-center space-y-3">
@@ -303,6 +334,12 @@ export const FAQPage: React.FC = () => {
 
 // 4. Shipping Policy Page
 export const ShippingPolicyPage: React.FC = () => {
+  usePageMeta({
+    title: 'Shipping & Dispatch Policy',
+    description: 'Free express shipping on orders above ₹5,000. Same-day dispatch before 3 PM, delivered via BlueDart, DTDC, and Delhivery.',
+    path: '/shipping'
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6 text-xs sm:text-sm text-neutral-700 leading-relaxed">
       <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950">Shipping & Dispatch Policy</h1>
@@ -312,14 +349,14 @@ export const ShippingPolicyPage: React.FC = () => {
 
       <h2 className="text-base sm:text-lg font-bold text-neutral-950 pt-3">1. Dispatch Timelines</h2>
       <p>
-        - Orders placed before 3:00 PM IST (Monday through Saturday) are dispatched on the <strong>same day</strong> from our Trichy Hub.<br />
+        - Orders placed before 3:00 PM IST (Monday through Saturday) are dispatched on the <strong>same day</strong> from our fulfillment hub.<br />
         - Orders placed after 3:00 PM or on Sundays/Public Holidays will be dispatched on the next business day.
       </p>
 
       <h2 className="text-base sm:text-lg font-bold text-neutral-950 pt-3">2. Delivery Charges & Free Shipping</h2>
       <p>
-        - Orders over <strong>₹2,999</strong> qualify for <strong>FREE Express Shipping</strong> anywhere across India.<br />
-        - For orders under ₹2,999, a flat shipping fee of ₹149 is calculated at checkout.
+        - Orders over <strong>₹5,000</strong> qualify for <strong>FREE Express Shipping</strong> anywhere across India.<br />
+        - For orders under ₹5,000, a flat shipping fee of ₹149 is calculated at checkout.
       </p>
 
       <h2 className="text-base sm:text-lg font-bold text-neutral-950 pt-3">3. Courier Partners & Tracking</h2>
@@ -332,6 +369,12 @@ export const ShippingPolicyPage: React.FC = () => {
 
 // 5. Returns & Exchange Policy Page
 export const ReturnsPolicyPage: React.FC = () => {
+  usePageMeta({
+    title: 'Returns & Exchange Policy',
+    description: 'District 38\'s 7-day size exchange guarantee — eligibility rules and how to initiate a return or exchange.',
+    path: '/returns'
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6 text-xs sm:text-sm text-neutral-700 leading-relaxed">
       <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950">07-Day Size Exchange Guarantee</h1>
@@ -357,6 +400,12 @@ export const ReturnsPolicyPage: React.FC = () => {
 
 // 6. Privacy Policy Page
 export const PrivacyPolicyPage: React.FC = () => {
+  usePageMeta({
+    title: 'Privacy Policy',
+    description: 'How District 38 collects, uses, and protects your personal information.',
+    path: '/privacy'
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6 text-xs sm:text-sm text-neutral-700 leading-relaxed">
       <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950">Privacy Policy</h1>
@@ -369,6 +418,12 @@ export const PrivacyPolicyPage: React.FC = () => {
 
 // 7. Terms & Conditions Page
 export const TermsPage: React.FC = () => {
+  usePageMeta({
+    title: 'Terms & Conditions',
+    description: 'Terms and conditions for purchases made through District 38.',
+    path: '/terms'
+  }, []);
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6 text-xs sm:text-sm text-neutral-700 leading-relaxed">
       <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950">Terms & Conditions</h1>
@@ -382,6 +437,13 @@ export const TermsPage: React.FC = () => {
 // 8. 404 Not Found Page
 export const NotFoundPage: React.FC = () => {
   const { navigate } = useShop();
+
+  useEffect(() => {
+    document.title = 'Page Not Found | District 38';
+    setRobotsMeta('noindex, nofollow');
+    return () => setRobotsMeta(null);
+  }, []);
+
   return (
     <div className="max-w-md mx-auto py-20 px-4 text-center space-y-4">
       <div className="w-16 h-16 rounded-full bg-neutral-100 flex items-center justify-center mx-auto text-neutral-400">

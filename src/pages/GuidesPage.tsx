@@ -1,10 +1,17 @@
 import React from 'react';
-import { BookOpen, Clock, ArrowRight, ShieldCheck, HelpCircle } from 'lucide-react';
+import { BookOpen, Clock, ArrowRight, HelpCircle } from 'lucide-react';
 import { GUIDES } from '../data/guides';
 import { useShop } from '../context/ShopContext';
+import { usePageMeta } from '../hooks/use-page-meta';
 
 export const GuidesPage: React.FC = () => {
   const { navigate } = useShop();
+
+  usePageMeta({
+    title: 'Motorcycle Gear Buying & Safety Guides',
+    description: 'Technical guides on ECE helmet homologation, CE armor ratings, helmet sizing, and touring gear setup from the District 38 team.',
+    path: '/guides'
+  }, []);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">

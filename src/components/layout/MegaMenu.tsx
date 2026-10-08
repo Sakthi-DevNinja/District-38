@@ -9,6 +9,43 @@ interface MegaMenuProps {
   onClose: () => void;
 }
 
+interface SpotlightTileProps {
+  onClick: () => void;
+  image: string;
+  alt: string;
+  badge: string;
+  badgeClass?: string;
+  title: string;
+  description: string;
+  ctaLabel: string;
+}
+
+const SpotlightTile: React.FC<SpotlightTileProps> = ({
+  onClick, image, alt, badge, badgeClass = 'bg-orange-600 text-white', title, description, ctaLabel
+}) => (
+  <div
+    onClick={onClick}
+    className="group cursor-pointer relative overflow-hidden rounded-lg bg-neutral-950 p-6 text-white h-full flex flex-col justify-end"
+  >
+    <img
+      src={image}
+      alt={alt}
+      className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-500"
+    />
+    <div className="relative z-10">
+      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider mb-2 ${badgeClass}`}>
+        {badge}
+      </span>
+      <h4 className="text-lg font-bold text-white mb-1">{title}</h4>
+      <p className="text-xs text-neutral-300 font-normal mb-3">{description}</p>
+      <div className="flex items-center space-x-2 text-xs font-semibold text-orange-400 group-hover:text-orange-300">
+        <span>{ctaLabel}</span>
+        <ArrowRight className="w-3.5 h-3.5" />
+      </div>
+    </div>
+  </div>
+);
+
 export const MegaMenu: React.FC<MegaMenuProps> = ({ activeMenu, onClose }) => {
   const { navigate, updateShopFilters } = useShop();
 
@@ -99,27 +136,15 @@ export const MegaMenu: React.FC<MegaMenuProps> = ({ activeMenu, onClose }) => {
 
           {/* Col 3: Spotlight Feature */}
           <div className="col-span-4 flex flex-col justify-between">
-            <div 
+            <SpotlightTile
               onClick={() => { navigate('/products/mt-thunder-4-sv-helmet'); onClose(); }}
-              className="group cursor-pointer relative overflow-hidden rounded-2xl bg-neutral-950 p-6 text-white h-full flex flex-col justify-end"
-            >
-              <img 
-                src="https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80" 
-                alt="MT Thunder 4 SV"
-                className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="relative z-10">
-                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-orange-600 text-white mb-2">
-                  BEST SELLER
-                </span>
-                <h4 className="text-lg font-bold text-white mb-1">MT Thunder 4 SV</h4>
-                <p className="text-xs text-neutral-300 font-normal mb-3">ECE 22.06 triple homologation with aerodynamic rear spoiler.</p>
-                <div className="flex items-center space-x-2 text-xs font-semibold text-orange-400 group-hover:text-orange-300">
-                  <span>Explore flagship model</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </div>
-              </div>
-            </div>
+              image="https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80"
+              alt="MT Thunder 4 SV"
+              badge="BEST SELLER"
+              title="MT Thunder 4 SV"
+              description="ECE 22.06 triple homologation with aerodynamic rear spoiler."
+              ctaLabel="Explore flagship model"
+            />
           </div>
         </div>
       </div>
@@ -183,27 +208,15 @@ export const MegaMenu: React.FC<MegaMenuProps> = ({ activeMenu, onClose }) => {
           </div>
 
           <div className="col-span-4">
-            <div 
+            <SpotlightTile
               onClick={() => { navigate('/products/rynox-stealth-air-pro-riding-jacket'); onClose(); }}
-              className="group cursor-pointer relative overflow-hidden rounded-2xl bg-neutral-950 p-6 text-white h-full flex flex-col justify-end"
-            >
-              <img 
-                src="https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=800&q=80" 
-                alt="Rynox Stealth Air Pro"
-                className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="relative z-10">
-                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-orange-600 text-white mb-2">
-                  TOP RATED JACKET
-                </span>
-                <h4 className="text-lg font-bold text-white mb-1">Rynox Stealth Air Pro</h4>
-                <p className="text-xs text-neutral-300 font-normal mb-3">Safe-Tech CE Level 2 full armor + rain liner included.</p>
-                <div className="flex items-center space-x-2 text-xs font-semibold text-orange-400 group-hover:text-orange-300">
-                  <span>View Product</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </div>
-              </div>
-            </div>
+              image="https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=800&q=80"
+              alt="Rynox Stealth Air Pro"
+              badge="TOP RATED JACKET"
+              title="Rynox Stealth Air Pro"
+              description="Safe-Tech CE Level 2 full armor + rain liner included."
+              ctaLabel="View Product"
+            />
           </div>
         </div>
       </div>
@@ -271,27 +284,16 @@ export const MegaMenu: React.FC<MegaMenuProps> = ({ activeMenu, onClose }) => {
           </div>
 
           <div className="col-span-4">
-            <div 
+            <SpotlightTile
               onClick={() => { navigate('/bike-accessories'); onClose(); }}
-              className="group cursor-pointer relative overflow-hidden rounded-2xl bg-neutral-950 p-6 text-white h-full flex flex-col justify-end"
-            >
-              <img 
-                src="https://images.unsplash.com/photo-1558980664-769d59546b3d?auto=format&fit=crop&w=800&q=80" 
-                alt="Touring accessories"
-                className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="relative z-10">
-                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-neutral-800 text-neutral-200 mb-2">
-                  ADVENTURE READY
-                </span>
-                <h4 className="text-lg font-bold text-white mb-1">Touring & Luggage</h4>
-                <p className="text-xs text-neutral-300 font-normal mb-3">Tested on Himalayas, Western Ghats, and coastal highways.</p>
-                <div className="flex items-center space-x-2 text-xs font-semibold text-orange-400 group-hover:text-orange-300">
-                  <span>Explore Accessories</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </div>
-              </div>
-            </div>
+              image="https://images.unsplash.com/photo-1558980664-769d59546b3d?auto=format&fit=crop&w=800&q=80"
+              alt="Touring accessories"
+              badge="ADVENTURE READY"
+              badgeClass="bg-neutral-800 text-neutral-200"
+              title="Touring & Luggage"
+              description="Tested on Himalayas, Western Ghats, and coastal highways."
+              ctaLabel="Explore Accessories"
+            />
           </div>
         </div>
       </div>
@@ -330,27 +332,15 @@ export const MegaMenu: React.FC<MegaMenuProps> = ({ activeMenu, onClose }) => {
           </div>
 
           <div className="col-span-7">
-            <div 
+            <SpotlightTile
               onClick={() => { navigate('/products/motul-c1-chain-clean-c2-chain-lube-combo'); onClose(); }}
-              className="group cursor-pointer relative overflow-hidden rounded-2xl bg-neutral-950 p-6 text-white h-full flex flex-col justify-end"
-            >
-              <img 
-                src="https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80" 
-                alt="Motul combo"
-                className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="relative z-10">
-                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-orange-600 text-white mb-2">
-                  TOP COMBO
-                </span>
-                <h4 className="text-lg font-bold text-white mb-1">Motul C1 Clean + C2 Road Lube + Free Grunge Brush</h4>
-                <p className="text-xs text-neutral-300 font-normal mb-3">The essential 500 km chain maintenance bundle for long sprocket life.</p>
-                <div className="flex items-center space-x-2 text-xs font-semibold text-orange-400 group-hover:text-orange-300">
-                  <span>Get combo for ₹1,049</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </div>
-              </div>
-            </div>
+              image="https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80"
+              alt="Motul combo"
+              badge="TOP COMBO"
+              title="Motul C1 Clean + C2 Road Lube + Free Grunge Brush"
+              description="The essential 500 km chain maintenance bundle for long sprocket life."
+              ctaLabel="Get combo for ₹1,049"
+            />
           </div>
         </div>
       </div>

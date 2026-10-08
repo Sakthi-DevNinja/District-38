@@ -4,9 +4,8 @@ import {
   Phone, 
   Mail, 
   Clock, 
-  Navigation, 
-  ShieldCheck, 
-  Ruler, 
+  Navigation,
+  Ruler,
   Sparkles, 
   ArrowRight,
   ExternalLink,
@@ -15,9 +14,16 @@ import {
 } from 'lucide-react';
 import { DISTRICT_38_STORE } from '../data/storeInfo';
 import { useShop } from '../context/ShopContext';
+import { usePageMeta } from '../hooks/use-page-meta';
 
 export const StorePage: React.FC = () => {
   const { openSizeGuide } = useShop();
+
+  usePageMeta({
+    title: 'Flagship Store & Sizing Studio',
+    description: `Visit District 38's flagship store at ${DISTRICT_38_STORE.addressLine1}, ${DISTRICT_38_STORE.city} — free helmet sizing, posture rig, and in-store gear trials.`,
+    path: '/store'
+  }, []);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">

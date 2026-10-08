@@ -9,13 +9,13 @@ export const AnnouncementBar: React.FC = () => {
 
   const messages = [
     {
-      text: 'FREE EXPRESS SHIPPING ON ORDERS OVER ₹2,999 • 07-DAY NO-HASSLE RETURNS',
+      text: 'FREE EXPRESS SHIPPING ON ORDERS OVER ₹5,000',
       badge: 'OFFER',
       action: () => navigate('/offers'),
       icon: Truck
     },
     {
-      text: 'TRICHY STORE OPEN TODAY UNTIL 9:30 PM — FREE HELMET LASER SIZING & TRIAL',
+      text: 'FLAGSHIP STORE OPEN TODAY UNTIL 9:30 PM — FREE HELMET LASER SIZING & TRIAL',
       badge: 'VISIT STORE',
       action: () => navigate('/contact'),
       icon: MapPin
@@ -38,7 +38,7 @@ export const AnnouncementBar: React.FC = () => {
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="hidden sm:flex items-center space-x-2 text-neutral-400">
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          <span className="font-medium tracking-wide">Trichy Store Open Today</span>
+          <span className="font-medium tracking-wide">Flagship Store Open Today</span>
         </div>
 
         <div className="flex-1 flex items-center justify-center space-x-3 text-center truncate">

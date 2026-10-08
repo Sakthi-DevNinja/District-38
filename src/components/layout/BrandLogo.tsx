@@ -15,11 +15,17 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
 }) => {
   const [imageError, setImageError] = useState(false);
 
+  // The real logo file (public/brand/logodt38.webp) is a wide 3:1
+  // wordmark lockup (150×50). Fixed, moderately-wide boxes here keep it
+  // from eating too much horizontal space — object-cover below lets the
+  // outer edges crop slightly rather than shrinking the whole mark down
+  // to fit, and there's no background chip since the logo itself is
+  // transparent.
   const iconSizeClasses = {
-    sm: 'w-7 h-7 rounded-md',
-    md: 'w-8 h-8 sm:w-9 sm:h-9 rounded-lg',
-    lg: 'w-10 h-10 sm:w-11 sm:h-11 rounded-xl',
-    xl: 'w-13 h-13 sm:w-14 sm:h-14 rounded-2xl',
+    sm: 'w-9 h-6 rounded-md',
+    md: 'w-11 h-7 sm:w-12 sm:h-8 rounded-lg',
+    lg: 'w-14 h-9 sm:w-16 sm:h-10 rounded-xl',
+    xl: 'w-16 h-10 sm:w-20 sm:h-12 rounded-2xl',
   };
 
   const textSizeClasses = {
@@ -40,20 +46,21 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
 
   return (
     <div className={`flex items-center space-x-2.5 sm:space-x-3 select-none flex-nowrap ${className}`}>
-      {/* Official District 38 Logo from /logodt38.webp */}
-      <div 
-        className={`${iconSizeClasses[size]} shrink-0 flex items-center justify-center shadow-xs transition-transform duration-200 group-hover:scale-105 relative overflow-hidden bg-neutral-950`}
+      {/* Official District 38 Logo from /brand/logodt38.webp — transparent,
+          no background chip. */}
+      <div
+        className={`${iconSizeClasses[size]} shrink-0 flex items-center justify-center transition-transform duration-200 group-hover:scale-105 relative overflow-hidden`}
       >
         {!imageError ? (
           <img
-            src="/logodt38.webp"
+            src="/brand/logodt38.webp"
             alt="District 38 Official Logo"
             className="w-full h-full object-cover"
             onError={() => setImageError(true)}
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div 
+          <div
             className="w-full h-full flex items-center justify-center font-extrabold tracking-tighter"
             style={{ backgroundColor: '#FFE600' }}
           >
@@ -73,7 +80,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           <div className={`uppercase tracking-widest font-semibold mt-1 leading-none ${subtextSizeClasses[size]} ${
             isDark ? 'text-neutral-400' : 'text-neutral-400 hidden sm:block'
           }`}>
-            Trichy • Motor Gear
+            Motor Gear
           </div>
         </div>
       )}

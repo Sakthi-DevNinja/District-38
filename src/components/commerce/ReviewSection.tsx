@@ -27,7 +27,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
   const [newRating, setNewRating] = useState(5);
   const [newTitle, setNewTitle] = useState('');
   const [newComment, setNewComment] = useState('');
-  const [newBike, setNewBike] = useState(currentUser?.bikeModel || '');
+  const [newBike, setNewBike] = useState('');
 
   const handleHelpful = (reviewId: string) => {
     setReviews(prev =>
@@ -45,7 +45,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
 
     const review: ProductReview = {
       id: `rev-${Date.now()}`,
-      author: currentUser?.name || 'Fellow Rider',
+      author: currentUser?.displayName || 'Fellow Rider',
       rating: newRating,
       date: 'Just now',
       title: newTitle.trim(),
@@ -180,7 +180,7 @@ export const ReviewSection: React.FC<ReviewSectionProps> = ({
                 <ThumbsUp className="w-3.5 h-3.5" />
                 <span>Helpful ({rev.helpfulCount})</span>
               </button>
-              <span>Inspected by District 38 Trichy</span>
+              <span>Inspected by District 38</span>
             </div>
           </div>
         ))}

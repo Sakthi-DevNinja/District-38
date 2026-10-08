@@ -1,7 +1,10 @@
 import React from 'react';
-import { ArrowLeft, Clock, User, Share2, ShieldCheck, ChevronRight, BookOpen } from 'lucide-react';
+import { ArrowLeft, Clock, User, Share2, ChevronRight, BookOpen } from 'lucide-react';
 import { GUIDES } from '../data/guides';
 import { useShop } from '../context/ShopContext';
+import { usePageMeta } from '../hooks/use-page-meta';
+import { setStructuredData } from '../lib/seo';
+import { useEffect } from 'react';
 
 interface GuideDetailPageProps {
   slug: string;
@@ -10,6 +13,27 @@ interface GuideDetailPageProps {
 export const GuideDetailPage: React.FC<GuideDetailPageProps> = ({ slug }) => {
   const { navigate, showToast } = useShop();
   const guide = GUIDES.find(g => g.slug === slug) || GUIDES[0];
+
+  usePageMeta({
+    title: guide.title,
+    description: guide.excerpt,
+    path: `/guides/${guide.slug}`,
+    image: guide.coverImage
+  }, [guide.slug]);
+
+  useEffect(() => {
+    setStructuredData('ld-article', {
+      '@context': 'https://schema.org',
+      '@type': 'Article',
+      headline: guide.title,
+      description: guide.excerpt,
+      image: guide.coverImage,
+      author: { '@type': 'Person', name: guide.author },
+      datePublished: guide.publishedDate,
+      publisher: { '@type': 'Organization', name: 'District 38' }
+    });
+    return () => setStructuredData('ld-article', null);
+  }, [guide.slug]);
 
   const handleShare = () => {
     if (navigator.share) {
@@ -111,7 +135,7 @@ export const GuideDetailPage: React.FC<GuideDetailPageProps> = ({ slug }) => {
       <div className="p-6 bg-neutral-950 text-white rounded-3xl border border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="space-y-1 text-center sm:text-left">
           <h4 className="font-bold text-sm text-white">Need a personalized helmet fit test?</h4>
-          <p className="text-xs text-neutral-400">Visit our Trichy Flagship store for complimentary laser circumference sizing.</p>
+          <p className="text-xs text-neutral-400">Visit our Flagship Store for complimentary laser circumference sizing.</p>
         </div>
         <button
           onClick={() => navigate('/store')}

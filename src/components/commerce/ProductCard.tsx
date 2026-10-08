@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, Star, ShoppingBag, ShieldCheck, Eye, ImageOff } from 'lucide-react';
+import { Heart, Star, ShoppingBag, Eye, ImageOff } from 'lucide-react';
 import { Product } from '../../types';
 import { useShop } from '../../context/ShopContext';
 
@@ -29,17 +29,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, showQuickAdd 
   };
 
   return (
-    <div 
-      className="group relative flex flex-col bg-white rounded-xl border border-neutral-200 hover:border-neutral-300 hover:shadow-md transition-all duration-200 overflow-hidden"
+    <div
+      className="group relative flex flex-col bg-white rounded-lg border border-neutral-200 hover:border-neutral-900 transition-colors duration-200 overflow-hidden"
     >
       {/* Badges Overlay */}
       <div className="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1 pointer-events-none">
         {product.discountPercent && product.discountPercent > 0 ? (
-          <span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider bg-orange-600 text-white">
+          <span className="px-2 py-0.5 rounded-sm text-[10px] font-bold tracking-wider bg-orange-600 text-white">
             {product.discountPercent}% OFF
           </span>
         ) : product.isNew ? (
-          <span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider bg-neutral-900 text-white">
+          <span className="px-2 py-0.5 rounded-sm text-[10px] font-bold tracking-wider bg-neutral-900 text-white">
             NEW
           </span>
         ) : null}
@@ -52,7 +52,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, showQuickAdd 
           toggleWishlist(product.id);
         }}
         aria-label="Toggle wishlist"
-        className={`absolute top-2.5 right-2.5 z-10 p-1.5 rounded-lg backdrop-blur-md transition-all ${
+        className={`absolute top-2.5 right-2.5 z-10 p-1.5 rounded-md transition-all ${
           isFavorited 
             ? 'bg-orange-600 text-white' 
             : 'bg-white/90 text-neutral-600 hover:bg-white hover:text-neutral-900 border border-neutral-200/60'
@@ -99,7 +99,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, showQuickAdd 
                 e.stopPropagation();
                 openQuickAdd(product);
               }}
-              className="flex-1 py-2 px-3 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-xs transition-colors flex items-center justify-center space-x-1.5"
+              className="flex-1 py-2 px-3 rounded-md bg-neutral-900 hover:bg-neutral-800 text-white font-bold text-xs transition-colors flex items-center justify-center space-x-1.5"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
               <span>Select Options</span>
@@ -110,7 +110,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, showQuickAdd 
                 handleCardClick();
               }}
               aria-label="View Details"
-              className="p-2 rounded-lg bg-white hover:bg-neutral-100 text-neutral-900 font-semibold text-xs border border-neutral-200 transition-colors"
+              className="p-2 rounded-md bg-white hover:bg-neutral-100 text-neutral-900 font-semibold text-xs border border-neutral-200 transition-colors"
             >
               <Eye className="w-4 h-4" />
             </button>

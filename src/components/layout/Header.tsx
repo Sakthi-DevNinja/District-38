@@ -137,7 +137,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 border border-neutral-200/80 transition-colors whitespace-nowrap shrink-0 select-none"
           >
             <MapPin className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-            <span className="whitespace-nowrap">Trichy Store</span>
+            <span className="whitespace-nowrap">Visit Our Store</span>
           </button>
 
           {/* Search Trigger */}
@@ -175,11 +175,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                 className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-neutral-200 py-2 z-50 text-neutral-900 animate-in fade-in zoom-in-95 duration-150"
               >
                 <div className="px-4 py-2 border-b border-neutral-100">
-                  <div className="text-xs font-bold text-neutral-900 truncate">{currentUser?.name}</div>
+                  <div className="text-xs font-bold text-neutral-900 truncate">{currentUser?.displayName}</div>
                   <div className="text-[11px] text-neutral-500 truncate">{currentUser?.email}</div>
-                  <div className="mt-1 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-50 text-orange-700 whitespace-nowrap">
-                    {currentUser?.riderPoints || 0} Rider Points
-                  </div>
                 </div>
 
                 <button
@@ -192,19 +189,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                   onClick={() => { navigate('/account/orders'); setIsAccountMenuOpen(false); }}
                   className="w-full text-left px-4 py-2 text-xs text-neutral-700 hover:bg-neutral-50 font-medium whitespace-nowrap"
                 >
-                  My Orders & Tracking
-                </button>
-                <button
-                  onClick={() => { navigate('/account/addresses'); setIsAccountMenuOpen(false); }}
-                  className="w-full text-left px-4 py-2 text-xs text-neutral-700 hover:bg-neutral-50 font-medium whitespace-nowrap"
-                >
-                  Saved Addresses
-                </button>
-                <button
-                  onClick={() => { navigate('/account/profile'); setIsAccountMenuOpen(false); }}
-                  className="w-full text-left px-4 py-2 text-xs text-neutral-700 hover:bg-neutral-50 font-medium whitespace-nowrap"
-                >
-                  My Garage & Profile
+                  My Orders
                 </button>
 
                 <div className="border-t border-neutral-100 mt-1 pt-1">

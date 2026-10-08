@@ -1,10 +1,17 @@
 import React from 'react';
-import { Sparkles, ArrowRight, ShieldCheck, CloudRain, Flame, Compass, Zap } from 'lucide-react';
+import { Sparkles, ArrowRight, CloudRain, Flame, Compass, Zap } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { PRODUCTS } from '../data/products';
+import { usePageMeta } from '../hooks/use-page-meta';
 
 export const CollectionsPage: React.FC = () => {
   const { navigate, updateShopFilters } = useShop();
+
+  usePageMeta({
+    title: 'Curated Collections',
+    description: 'Shop District 38\'s curated motorcycle gear collections — ECE 22.06 certified helmets, monsoon-ready riding gear, and more.',
+    path: '/collections'
+  }, []);
 
   const collections = [
     {

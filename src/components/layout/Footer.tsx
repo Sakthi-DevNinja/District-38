@@ -4,9 +4,8 @@ import {
   Phone, 
   Mail, 
   ShieldCheck, 
-  Truck, 
-  RotateCcw, 
-  CreditCard, 
+  Truck,
+  CreditCard,
   ArrowRight, 
   Check, 
   Instagram, 
@@ -35,46 +34,31 @@ export const Footer: React.FC = () => {
 
   return (
     <footer className="bg-neutral-950 text-neutral-400 border-t border-neutral-800 text-xs w-full">
-      {/* 1. Global Trust Bar */}
-      <div className="border-b border-neutral-800/80 py-8 px-4 sm:px-6 lg:px-8 xl:px-12">
-        <div className="w-full max-w-[1920px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-neutral-300">
-          <div className="flex items-start space-x-3">
-            <div className="p-2.5 rounded-xl bg-neutral-900 text-orange-500 shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="font-bold text-white text-sm">100% Genuine Gear</div>
-              <p className="text-neutral-400 text-xs mt-0.5">Authorised dealer for MT, Axor, Rynox, SMK & Motul with manufacturer warranty.</p>
-            </div>
-          </div>
-
-          <div className="flex items-start space-x-3">
-            <div className="p-2.5 rounded-xl bg-neutral-900 text-orange-500 shrink-0">
-              <Truck className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="font-bold text-white text-sm">Free Express Shipping</div>
-              <p className="text-neutral-400 text-xs mt-0.5">On orders above ₹2,999. Fast air & surface dispatch across Tamil Nadu & India.</p>
+      {/* 1. Global Trust Bar — inline icon + text ribbon, matching the
+          homepage's trust strip presentation. */}
+      <div className="border-b border-neutral-800/80 px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className="w-full max-w-[1920px] mx-auto grid grid-cols-1 sm:grid-cols-3 divide-y divide-neutral-800/80 sm:divide-y-0 sm:divide-x sm:divide-neutral-800/80">
+          <div className="flex items-center justify-center gap-3 py-4 sm:py-5 sm:px-6">
+            <ShieldCheck className="w-4 h-4 text-orange-500 shrink-0" />
+            <div className="text-center sm:text-left">
+              <span className="text-xs sm:text-sm font-bold text-white">100% Genuine Gear</span>
+              <span className="hidden sm:inline text-[11px] text-neutral-400 ml-2">Authorised dealer for MT, Axor, Rynox, SMK & Motul</span>
             </div>
           </div>
 
-          <div className="flex items-start space-x-3">
-            <div className="p-2.5 rounded-xl bg-neutral-900 text-orange-500 shrink-0">
-              <RotateCcw className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="font-bold text-white text-sm">07-Day Size Exchange</div>
-              <p className="text-neutral-400 text-xs mt-0.5">Hassle-free size replacement with reverse courier pickup for helmets & gear.</p>
+          <div className="flex items-center justify-center gap-3 py-4 sm:py-5 sm:px-6">
+            <Truck className="w-4 h-4 text-orange-500 shrink-0" />
+            <div className="text-center sm:text-left">
+              <span className="text-xs sm:text-sm font-bold text-white">Free Express Shipping</span>
+              <span className="hidden sm:inline text-[11px] text-neutral-400 ml-2">On orders above ₹5,000, across India</span>
             </div>
           </div>
 
-          <div className="flex items-start space-x-3">
-            <div className="p-2.5 rounded-xl bg-neutral-900 text-orange-500 shrink-0">
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="font-bold text-white text-sm">Secure Checkout</div>
-              <p className="text-neutral-400 text-xs mt-0.5">UPI, GPay, PhonePe, Cards, Net Banking & In-Store Click & Collect.</p>
+          <div className="flex items-center justify-center gap-3 py-4 sm:py-5 sm:px-6">
+            <CreditCard className="w-4 h-4 text-orange-500 shrink-0" />
+            <div className="text-center sm:text-left">
+              <span className="text-xs sm:text-sm font-bold text-white">Secure Checkout</span>
+              <span className="hidden sm:inline text-[11px] text-neutral-400 ml-2">UPI, cards, net banking & wallets</span>
             </div>
           </div>
         </div>
@@ -176,12 +160,12 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <button onClick={() => navigate('/returns')} className="hover:text-white transition-colors">
-                  07-Day Size Exchanges & Returns
+                  Returns & Exchanges
                 </button>
               </li>
               <li>
-                <button onClick={() => navigate('/contact')} className="hover:text-white transition-colors">
-                  Trichy Store Visit & Sizing Rig
+                <button onClick={() => navigate('/store')} className="hover:text-white transition-colors">
+                  Flagship Store & Sizing Studio
                 </button>
               </li>
               <li>
@@ -192,6 +176,11 @@ export const Footer: React.FC = () => {
               <li>
                 <button onClick={() => navigate('/brands')} className="hover:text-white transition-colors">
                   Authorized Brand Partners
+                </button>
+              </li>
+              <li>
+                <button onClick={() => navigate('/about')} className="hover:text-white transition-colors">
+                  About District 38
                 </button>
               </li>
               <li>
@@ -212,7 +201,7 @@ export const Footer: React.FC = () => {
             </p>
 
             {isSubscribed ? (
-              <div className="p-3 rounded-xl bg-neutral-900 border border-neutral-800 text-emerald-400 flex items-center space-x-2 text-xs">
+              <div className="p-3 rounded-md bg-neutral-900 border border-neutral-800 text-emerald-400 flex items-center space-x-2 text-xs">
                 <Check className="w-4 h-4" />
                 <span>You're on the District 38 Rider List!</span>
               </div>
@@ -224,12 +213,12 @@ export const Footer: React.FC = () => {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="Enter your rider email"
-                    className="w-full px-3.5 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-orange-500"
+                    className="w-full px-3.5 py-2.5 bg-neutral-900 border border-neutral-800 rounded-md text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-orange-500"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs tracking-wide transition-colors flex items-center justify-center space-x-1.5"
+                  className="w-full py-2.5 rounded-md bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs tracking-wide transition-colors flex items-center justify-center space-x-1.5"
                 >
                   <span>GET RIDING DROPS</span>
                   <ArrowRight className="w-3.5 h-3.5" />
