@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Heart, 
   ShoppingBag, 
   Zap, 
-  ShieldCheck, 
-  Truck,
-  RotateCcw, 
-  Check, 
+  ShieldCheck,
+  Check,
   Star, 
   ChevronRight, 
   Share2, 
@@ -18,12 +16,16 @@ import {
 import { useShop } from '../context/ShopContext';
 import { useProduct } from '../hooks/use-product';
 import { useProducts } from '../hooks/use-products';
-import { adaptDetail, adaptListItem } from '../lib/product-adapter';
+import { adaptDetail, adaptListItem, slugifyCategoryName } from '../lib/product-adapter';
 import { REVIEWS } from '../data/reviews';
 import { ProductGallery } from '../components/commerce/ProductGallery';
 import { ReviewSection } from '../components/commerce/ReviewSection';
 import { PincodeChecker } from '../components/commerce/PincodeChecker';
 import { ProductGrid } from '../components/commerce/ProductGrid';
+import { VariantPicker } from '../components/commerce/VariantPicker';
+import { usePageMeta } from '../hooks/use-page-meta';
+import { setStructuredData } from '../lib/seo';
+import { resolveImageUrl } from '../lib/api/client';
 
 interface ProductDetailPageProps {
   slug: string;
@@ -43,12 +45,69 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
   const productDetailQuery = useProduct(slug);
   const productDto = productDetailQuery.data;
 
+  // Real per-page title/description + Product structured data — every
+  // field below comes straight from the real API response, never
+  // fabricated (rating/reviewCount are deliberately omitted from the
+  // schema since VEYONN has no review capability).
+  usePageMeta(
+    productDto
+      ? {
+          title: `${productDto.name} — ${productDto.brand?.name ?? 'District 38'}`,
+          description: productDto.shortDescription ?? `${productDto.name} by ${productDto.brand?.name ?? 'District 38'} — ${productDto.price.sellingPrice ? `₹${productDto.price.sellingPrice}` : ''} at District 38.`,
+          path: `/products/${productDto.slug}`,
+          image: productDto.thumbnail ? resolveImageUrl(productDto.thumbnail.mediumUrl) : undefined
+        }
+      : null,
+    [productDto?.id]
+  );
+
+  useEffect(() => {
+    if (!productDto) return;
+    setStructuredData('ld-product', {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: productDto.name,
+      description: productDto.shortDescription ?? undefined,
+      image: productDto.thumbnail ? resolveImageUrl(productDto.thumbnail.mediumUrl) : undefined,
+      sku: productDto.id,
+      brand: productDto.brand ? { '@type': 'Brand', name: productDto.brand.name } : undefined,
+      offers: {
+        '@type': 'Offer',
+        priceCurrency: productDto.price.currency,
+        price: productDto.price.sellingPrice,
+        availability: productDto.inStock
+          ? 'https://schema.org/InStock'
+          : 'https://schema.org/OutOfStock',
+        url: `${window.location.origin}/products/${productDto.slug}`
+      }
+    });
+
+    const categorySlug = productDto.category ? slugifyCategoryName(productDto.category.name) : null;
+    setStructuredData('ld-breadcrumb', {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: `${window.location.origin}/` },
+        ...(productDto.category
+          ? [{ '@type': 'ListItem', position: 2, name: productDto.category.name, item: `${window.location.origin}/${categorySlug}` }]
+          : []),
+        { '@type': 'ListItem', position: productDto.category ? 3 : 2, name: productDto.name, item: `${window.location.origin}/products/${productDto.slug}` }
+      ]
+    });
+
+    return () => {
+      setStructuredData('ld-product', null);
+      setStructuredData('ld-breadcrumb', null);
+    };
+  }, [productDto]);
+
   // Related products — server-side filtered by the SAME real category id
   // this product belongs to (not the client-derived slug used for URL
   // routing elsewhere on this page).
   const relatedQuery = useProducts({ productCategoryId: productDto?.category?.id, limit: 5 });
 
   const [selectedVariantId, setSelectedVariantId] = useState<string>('');
+  const [showVariantError, setShowVariantError] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'specs' | 'features' | 'care'>('specs');
 
@@ -87,15 +146,34 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
     .map(adaptListItem)
     .slice(0, 4);
 
-  const selectedVariant = product.variants.find((v) => v.id === selectedVariantId);
+  // A product with variants must be added with one; a single in-stock
+  // variant is picked automatically.
+  const hasVariants = product.variants.length > 0;
+  const autoVariantId =
+    product.variants.length === 1 && product.variants[0].inStock ? product.variants[0].id : '';
+  const selectedVariant = product.variants.find((v) => v.id === (selectedVariantId || autoVariantId));
+  const displayPrice = selectedVariant?.price ?? product.price;
+  const displayOriginalPrice = selectedVariant ? selectedVariant.originalPrice : product.originalPrice;
+  const displayDiscount =
+    displayOriginalPrice && displayOriginalPrice > displayPrice
+      ? Math.round(((displayOriginalPrice - displayPrice) / displayOriginalPrice) * 100)
+      : null;
 
-  const handleAddToCart = () => {
-    addToCart(product, quantity, selectedVariant);
+  const addSelectionToCart = async () => {
+    if (hasVariants && !selectedVariant) {
+      setShowVariantError(true);
+      return false;
+    }
+    await addToCart(product.id, quantity, selectedVariant?.id);
+    return true;
   };
 
-  const handleBuyNow = () => {
-    addToCart(product, quantity, selectedVariant);
-    navigate('/checkout');
+  const handleAddToCart = () => {
+    void addSelectionToCart();
+  };
+
+  const handleBuyNow = async () => {
+    if (await addSelectionToCart()) navigate('/checkout');
   };
 
   const handleShare = () => {
@@ -176,7 +254,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
                 )}
                 {product.rating != null && product.sku && <span className="text-neutral-300">•</span>}
                 {product.sku && (
-                  <span className="text-neutral-400 text-[11px] font-medium">SKU: {product.sku}</span>
+                  <span className="text-neutral-400 text-[11px] font-medium">SKU: {selectedVariant?.sku ?? product.sku}</span>
                 )}
               </div>
             )}
@@ -186,15 +264,15 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
           <div className="p-4 bg-neutral-50 rounded-2xl border border-neutral-200/80 space-y-1">
             <div className="flex items-baseline space-x-3">
               <span className="text-2xl sm:text-3xl font-bold text-neutral-950 tracking-tight">
-                ₹{product.price.toLocaleString('en-IN')}
+                ₹{displayPrice.toLocaleString('en-IN')}
               </span>
-              {product.originalPrice && product.originalPrice > product.price && (
+              {displayOriginalPrice && displayDiscount && (
                 <>
                   <span className="text-sm text-neutral-400 line-through font-normal">
-                    ₹{product.originalPrice.toLocaleString('en-IN')}
+                    ₹{displayOriginalPrice.toLocaleString('en-IN')}
                   </span>
                   <span className="px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-800">
-                    {product.discountPercent}% OFF
+                    {displayDiscount}% OFF
                   </span>
                 </>
               )}
@@ -204,36 +282,16 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
             </div>
           </div>
 
-          {/* Variant Selection — VEYONN variants are a plain named option
-              (no separate structured color/hex or size), so this is one
-              generic selector rather than the old separate color/size UI.
-              Only shown when a product genuinely has more than one real
-              variant. */}
-          {product.variants.length > 1 && (
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">
-                Options
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {product.variants.map((v) => {
-                  const isSelected = selectedVariantId === v.id;
-                  return (
-                    <button
-                      key={v.id}
-                      onClick={() => setSelectedVariantId(v.id)}
-                      disabled={!v.inStock}
-                      className={`py-2.5 px-3 text-xs font-semibold rounded-xl border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                        isSelected
-                          ? 'border-neutral-950 bg-neutral-950 text-white shadow-sm'
-                          : 'border-neutral-200 hover:border-neutral-400 text-neutral-800 bg-white'
-                      }`}
-                    >
-                      {v.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+          {hasVariants && (
+            <VariantPicker
+              variants={product.variants}
+              selectedId={selectedVariant?.id ?? ''}
+              onSelect={(id) => {
+                setSelectedVariantId(id);
+                setShowVariantError(false);
+              }}
+              showError={showVariantError}
+            />
           )}
 
           {/* Quantity & CTA Buttons */}
@@ -264,7 +322,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
                 className="flex-1 py-3 px-4 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs sm:text-sm tracking-wide shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2"
               >
                 <ShoppingBag className="w-4 h-4" />
-                <span>ADD TO CART • ₹{(product.price * quantity).toLocaleString('en-IN')}</span>
+                <span>ADD TO CART • ₹{(displayPrice * quantity).toLocaleString('en-IN')}</span>
               </button>
 
               {/* Wishlist Icon Button */}
@@ -291,12 +349,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
             </button>
           </div>
 
-          {/* Trichy Store Stock Badge & Pincode Checker */}
+          {/* Stock Badge & Pincode Checker */}
           <div className="space-y-4 pt-2">
             <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between">
               <span className="flex items-center space-x-1.5 font-medium">
                 <Check className="w-4 h-4 text-emerald-600" />
-                <span>Ready for dispatch from <strong>Trichy Central Hub</strong></span>
+                <span>Ready for dispatch</span>
               </span>
               <span className="text-[11px] font-bold text-emerald-800">Same-Day Courier</span>
             </div>
@@ -304,15 +362,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
             <PincodeChecker />
           </div>
 
-          {/* Quick Value Pillars */}
-          <div className="grid grid-cols-2 gap-3 pt-2 text-xs text-neutral-600">
+          {/* Quick Value Pillar */}
+          <div className="pt-2 text-xs text-neutral-600">
             <div className="flex items-center space-x-2 p-2.5 rounded-xl bg-neutral-50 border border-neutral-200/80">
               <ShieldCheck className="w-4 h-4 text-orange-600 shrink-0" />
               <span>Official 1-Year Brand Warranty</span>
-            </div>
-            <div className="flex items-center space-x-2 p-2.5 rounded-xl bg-neutral-50 border border-neutral-200/80">
-              <RotateCcw className="w-4 h-4 text-orange-600 shrink-0" />
-              <span>07-Day Size Exchange Guarantee</span>
             </div>
           </div>
         </div>

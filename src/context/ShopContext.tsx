@@ -1,15 +1,22 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { 
-  Product, 
-  CartItem, 
-  UserAddress, 
-  Order, 
-  UserProfile, 
-  ProductVariant, 
-  FilterState 
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import {
+  Product,
+  CartItem,
+  Order,
+  OrderListItem,
+  UserProfile,
+  FilterState,
+  DeliveryAddress
 } from '../types';
-import { PRODUCTS } from '../data/products';
-import { DISTRICT_38_STORE } from '../data/storeInfo';
+import { adaptListItem } from '../lib/product-adapter';
+import * as authApi from '../lib/api/auth';
+import * as wishlistApi from '../lib/api/wishlist';
+import * as cartApi from '../lib/api/cart';
+import { getProductBySlug } from '../lib/api/catalog';
+import * as checkoutApi from '../lib/api/checkout';
+import * as ordersApi from '../lib/api/orders';
+import { CartResponse, CheckoutResult, WishlistItem as ApiWishlistItem } from '../lib/api/types';
+import { getCustomerToken, setCustomerToken, clearCustomerToken, ApiError } from '../lib/api/client';
 
 interface Toast {
   id: string;
@@ -23,30 +30,28 @@ interface ShopContextType {
   routeParams: Record<string, string>;
   navigate: (route: string, params?: Record<string, string>) => void;
 
-  // Cart
+  // Cart — VEYONN is authoritative; every mutation is a real API call.
+  // Requires authentication (the backend's cart has no guest-cart
+  // capability — every /cart route demands a customer JWT).
   cart: CartItem[];
   cartCount: number;
   cartSubtotal: number;
-  cartDiscount: number;
-  cartShipping: number;
-  cartTotal: number;
-  appliedCoupon: string | null;
-  couponDiscountPercent: number;
-  applyCoupon: (code: string) => { success: boolean; message: string };
-  removeCoupon: () => void;
-  addToCart: (product: Product, quantity?: number, selectedVariant?: ProductVariant, selectedColor?: string, selectedSize?: string) => void;
-  updateCartQuantity: (itemId: string, delta: number) => void;
-  removeFromCart: (itemId: string) => void;
-  clearCart: () => void;
+  cartCurrency: string;
+  cartLoading: boolean;
+  addToCart: (productId: string, quantity?: number, variantId?: string) => Promise<void>;
+  updateCartQuantity: (productId: string, quantity: number, variantId?: string | null) => Promise<void>;
+  removeFromCart: (productId: string, variantId?: string | null) => Promise<void>;
+  clearCart: () => Promise<void>;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
 
-  // Wishlist
-  wishlist: string[];
+  // Wishlist — VEYONN is authoritative; requires authentication.
+  wishlist: ApiWishlistItem[];
   wishlistCount: number;
+  wishlistLoading: boolean;
   isInWishlist: (productId: string) => boolean;
-  toggleWishlist: (productId: string) => void;
-  moveToCartFromWishlist: (product: Product, size?: string) => void;
+  toggleWishlist: (productId: string) => Promise<void>;
+  moveToCartFromWishlist: (productId: string) => Promise<void>;
 
   // Search
   searchQuery: string;
@@ -70,26 +75,25 @@ interface ShopContextType {
   openSizeGuide: (category: string) => void;
   closeSizeGuide: () => void;
 
-  // User & Auth
+  // User & Auth — real VEYONN customer auth only. Never an admin/Pilot JWT.
   currentUser: UserProfile | null;
   isAuthenticated: boolean;
-  login: (email: string, name?: string) => void;
-  logout: () => void;
-  updateProfile: (data: Partial<UserProfile>) => void;
+  authLoading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (input: { email: string; password: string; firstName: string; lastName: string }) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
 
-  // Addresses
-  savedAddresses: UserAddress[];
-  addAddress: (address: Omit<UserAddress, 'id'>) => void;
-  updateAddress: (id: string, address: Partial<UserAddress>) => void;
-  deleteAddress: (id: string) => void;
-  setDefaultAddress: (id: string) => void;
+  // Checkout — a real VEYONN Sales Order + Razorpay payment init.
+  submitCheckout: (address: DeliveryAddress) => Promise<CheckoutResult>;
 
-  // Orders
-  orders: Order[];
-  createOrder: (orderData: Omit<Order, 'id' | 'orderNumber' | 'date' | 'timeline' | 'trackingNumber' | 'courierName'>) => Order;
-  getOrderById: (orderId: string) => Order | undefined;
+  // Orders — the customer's own real WEBSITE orders.
+  orders: OrderListItem[];
+  ordersLoading: boolean;
+  refreshOrders: () => Promise<void>;
+  fetchOrder: (id: string) => Promise<Order | null>;
 
-  // Recently Viewed
+  // Recently Viewed (local-only browsing convenience — never presented as
+  // synced/backend data)
   recentlyViewed: string[];
   addRecentlyViewed: (productId: string) => void;
 
@@ -116,170 +120,380 @@ const DEFAULT_FILTERS: FilterState = {
   inStockOnly: false,
   onSaleOnly: false,
   searchQuery: '',
-  sortBy: 'featured'
+  sortBy: 'newest'
 };
 
-const DEFAULT_USER: UserProfile = {
-  id: 'usr-1',
-  name: 'Vasanth Kumar',
-  email: 'vasanth.rider@gmail.com',
-  phone: '+91 98421 55678',
-  bikeModel: 'Royal Enfield Himalayan 450 (Kamet White)',
-  ridingExperienceYears: 6,
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-  memberSince: 'March 2024',
-  riderPoints: 1450
-};
+const EMPTY_CART: CartResponse = { items: [], subtotal: 0, currency: 'INR' };
 
-const DEFAULT_ADDRESSES: UserAddress[] = [
-  {
-    id: 'addr-1',
-    name: 'Vasanth Kumar',
-    phone: '+91 98421 55678',
-    addressLine1: 'No. 14, 5th Cross, Thillai Nagar West',
-    addressLine2: 'Near Rockfort View School',
-    city: 'Tiruchirappalli (Trichy)',
-    state: 'Tamil Nadu',
-    pincode: '620018',
-    country: 'India',
-    type: 'Home',
-    isDefault: true
-  },
-  {
-    id: 'addr-2',
-    name: 'Vasanth Kumar',
-    phone: '+91 98421 55678',
-    addressLine1: 'District 38 Flagship Store Counter, 75/c Alsa Complex',
-    addressLine2: 'Salai Road, Next to Reliance Digital',
-    city: 'Tiruchirappalli (Trichy)',
-    state: 'Tamil Nadu',
-    pincode: '620018',
-    country: 'India',
-    type: 'Store Pickup',
-    isDefault: false
-  }
-];
+function mapCart(response: CartResponse): CartItem[] {
+  return response.items
+    .filter((line) => line.product !== null)
+    .map((line) => ({
+      productId: line.productId,
+      variantId: line.variantId,
+      variantName: line.variantName,
+      product: adaptListItem(line.product!),
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      totalPrice: line.lineTotal
+    }));
+}
 
-const INITIAL_ORDERS: Order[] = [
-  {
-    id: 'ord-101',
-    orderNumber: 'D38-92841',
-    date: '2026-08-14T10:30:00Z',
-    items: [
-      {
-        productId: 'prod-mt-thunder-4-sv',
-        productName: 'MT Thunder 4 SV Solid Full Face Helmet',
-        productImage: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=600&q=80',
-        brand: 'MT Helmets',
-        color: 'Matt Black',
-        size: 'L',
-        quantity: 1,
-        unitPrice: 6750,
-        totalPrice: 6750
-      },
-      {
-        productId: 'prod-motul-c1-c2-combo',
-        productName: 'Motul C1 Chain Clean + C2 Chain Lube Road Combo',
-        productImage: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80',
-        brand: 'Motul',
-        size: '400ml Combo',
-        quantity: 1,
-        unitPrice: 1049,
-        totalPrice: 1049
-      }
-    ],
-    subtotal: 7799,
-    discount: 500,
-    shipping: 0,
-    tax: 0,
-    total: 7299,
-    paymentMethod: 'UPI',
-    paymentStatus: 'Paid',
-    orderStatus: 'Delivered',
-    shippingAddress: DEFAULT_ADDRESSES[0],
-    estimatedDelivery: '17 August 2026',
-    trackingNumber: 'DTDC-TRZ-8849201',
-    courierName: 'DTDC Express Air',
-    timeline: [
-      { status: 'Order Confirmed', date: '14 Aug 2026, 10:32 AM', description: 'Order verified & payment received via UPI', completed: true },
-      { status: 'Packed at Trichy Hub', date: '14 Aug 2026, 02:15 PM', description: 'Inspected with laser precision, double boxed with bubble wrap', location: 'District 38 Trichy Fulfillment Hub', completed: true },
-      { status: 'Dispatched', date: '14 Aug 2026, 06:40 PM', description: 'Handed over to DTDC Express courier team', location: 'Trichy Central Dispatch', completed: true },
-      { status: 'Out for Delivery', date: '16 Aug 2026, 09:10 AM', description: 'Courier partner is on the way to delivery address', location: 'Thillai Nagar Delivery Hub', completed: true },
-      { status: 'Delivered', date: '16 Aug 2026, 01:45 PM', description: 'Delivered successfully to Vasanth Kumar with signature', completed: true, current: true }
-    ]
-  }
-];
+function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) return err.message;
+  if (err instanceof Error) return err.message;
+  return fallback;
+}
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
 
 export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Navigation
+  // Navigation — real path-based routing via the History API (switched
+  // from hash-based routing now that no production deployment exists yet
+  // to have live deep links broken by the switch). Requires the eventual
+  // host to serve index.html for any unmatched path (SPA fallback) —
+  // see public/_redirects (Netlify) and vercel.json (Vercel); a custom
+  // server needs an equivalent catch-all. Vite's own dev server does this
+  // automatically, so `npm run dev` needs no extra config.
   const [currentRoute, setCurrentRoute] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      const hash = window.location.hash.replace(/^#/, '');
-      return hash || '/';
+      return window.location.pathname || '/';
     }
     return '/';
   });
   const [routeParams, setRouteParams] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.replace(/^#/, '');
-      setCurrentRoute(hash || '/');
+    const handlePopState = () => {
+      setCurrentRoute(window.location.pathname || '/');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   const navigate = (route: string, params: Record<string, string> = {}) => {
     setRouteParams(params);
     setCurrentRoute(route);
-    window.location.hash = route;
+    window.history.pushState({}, '', route);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Cart State
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('d38_cart');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  // Toasts (declared early — auth/cart/wishlist helpers below use it)
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
+  const dismissToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const showToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => dismissToast(id), 4000);
+  };
+
+  // ─── Auth (real VEYONN customer auth) ──────────────────────────────────
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // ─── Cart (real VEYONN cart) ────────────────────────────────────────────
+  const [cartResponse, setCartResponse] = useState<CartResponse>(EMPTY_CART);
+  const [cartLoading, setCartLoading] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
-  const [couponDiscountPercent, setCouponDiscountPercent] = useState(0);
 
-  useEffect(() => {
+  // ─── Wishlist (real VEYONN wishlist) ────────────────────────────────────
+  const [wishlist, setWishlist] = useState<ApiWishlistItem[]>([]);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+
+  // ─── Orders (real VEYONN customer orders) ──────────────────────────────
+  const [orders, setOrders] = useState<OrderListItem[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
+  const refreshCart = useCallback(async () => {
+    setCartLoading(true);
     try {
-      localStorage.setItem('d38_cart', JSON.stringify(cart));
-    } catch (e) {
-      console.error(e);
+      const response = await cartApi.getCart();
+      setCartResponse(response);
+    } catch (err) {
+      showToast(errorMessage(err, 'Could not load your cart.'), 'error');
+    } finally {
+      setCartLoading(false);
     }
-  }, [cart]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Wishlist State
-  const [wishlist, setWishlist] = useState<string[]>(() => {
+  const refreshWishlist = useCallback(async () => {
+    setWishlistLoading(true);
     try {
-      const saved = localStorage.getItem('d38_wishlist');
-      return saved ? JSON.parse(saved) : ['prod-mt-thunder-4-sv', 'prod-rynox-stealth-air-pro'];
+      const items = await wishlistApi.getWishlist();
+      setWishlist(items);
+    } catch (err) {
+      showToast(errorMessage(err, 'Could not load your wishlist.'), 'error');
+    } finally {
+      setWishlistLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const refreshOrders = useCallback(async () => {
+    setOrdersLoading(true);
+    try {
+      const page = await ordersApi.listOrders();
+      setOrders(page.items);
+    } catch (err) {
+      showToast(errorMessage(err, 'Could not load your orders.'), 'error');
+    } finally {
+      setOrdersLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // On mount: if a token is already stored (returning session), verify it
+  // and hydrate the customer's real cart/wishlist/orders. An expired or
+  // invalid token is discarded silently rather than shown as an error.
+  useEffect(() => {
+    const token = getCustomerToken();
+    if (!token) {
+      setAuthLoading(false);
+      return;
+    }
+    authApi
+      .getProfile()
+      .then((profile) => {
+        setCurrentUser(profile);
+        refreshCart();
+        refreshWishlist();
+        refreshOrders();
+      })
+      .catch(() => {
+        clearCustomerToken();
+      })
+      .finally(() => setAuthLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const token = await authApi.login({ email, password });
+      setCustomerToken(token.accessToken);
+      const profile = await authApi.getProfile();
+      setCurrentUser(profile);
+      showToast(`Welcome back, ${profile.displayName}!`, 'success');
+      refreshCart();
+      refreshWishlist();
+      refreshOrders();
+      return { success: true };
+    } catch (err) {
+      const message = errorMessage(err, 'Invalid email or password.');
+      showToast(message, 'error');
+      return { success: false, error: message };
+    }
+  };
+
+  const register = async (input: { email: string; password: string; firstName: string; lastName: string }): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const token = await authApi.register(input);
+      setCustomerToken(token.accessToken);
+      const profile = await authApi.getProfile();
+      setCurrentUser(profile);
+      showToast(`Welcome to District 38, ${profile.displayName}!`, 'success');
+      refreshCart();
+      refreshWishlist();
+      refreshOrders();
+      return { success: true };
+    } catch (err) {
+      const message = errorMessage(err, 'Could not create your account.');
+      showToast(message, 'error');
+      return { success: false, error: message };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      if (getCustomerToken()) {
+        await authApi.logout();
+      }
     } catch {
-      return ['prod-mt-thunder-4-sv'];
+      // Logout is enforced client-side regardless (stateless tokens) —
+      // a failed network call here must never block signing out.
     }
-  });
+    clearCustomerToken();
+    setCurrentUser(null);
+    setCartResponse(EMPTY_CART);
+    setWishlist([]);
+    setOrders([]);
+    showToast('You have been logged out.', 'info');
+  };
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('d38_wishlist', JSON.stringify(wishlist));
-    } catch (e) {
-      console.error(e);
+  const requireAuth = (action: string): boolean => {
+    if (!currentUser) {
+      showToast(`Please sign in to ${action}.`, 'info');
+      navigate('/login');
+      return false;
     }
-  }, [wishlist]);
+    return true;
+  };
+
+  // ─── Cart Mutations ─────────────────────────────────────────────────────
+  const addToCart = async (productId: string, quantity = 1, variantId?: string) => {
+    if (!requireAuth('add items to your cart')) return;
+    setCartLoading(true);
+    try {
+      const response = await cartApi.addCartItem(productId, quantity, variantId);
+      setCartResponse(response);
+      showToast('Added to cart', 'success');
+      setIsCartOpen(true);
+    } catch (err) {
+      showToast(errorMessage(err, 'Could not add this item to your cart.'), 'error');
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  const updateCartQuantity = async (productId: string, quantity: number, variantId?: string | null) => {
+    if (quantity <= 0) {
+      await removeFromCart(productId, variantId);
+      return;
+    }
+    setCartLoading(true);
+    try {
+      const response = await cartApi.updateCartItemQuantity(productId, quantity, variantId);
+      setCartResponse(response);
+    } catch (err) {
+      showToast(errorMessage(err, 'Could not update quantity.'), 'error');
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  const removeFromCart = async (productId: string, variantId?: string | null) => {
+    setCartLoading(true);
+    try {
+      const response = await cartApi.removeCartItem(productId, variantId);
+      setCartResponse(response);
+      showToast('Item removed from cart', 'info');
+    } catch (err) {
+      showToast(errorMessage(err, 'Could not remove this item.'), 'error');
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  const clearCart = async () => {
+    setCartLoading(true);
+    try {
+      const response = await cartApi.clearCart();
+      setCartResponse(response);
+    } catch (err) {
+      showToast(errorMessage(err, 'Could not clear your cart.'), 'error');
+    } finally {
+      setCartLoading(false);
+    }
+  };
+
+  const cart = mapCart(cartResponse);
+  const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+  const cartSubtotal = cartResponse.subtotal;
+  const cartCurrency = cartResponse.currency;
+
+  // ─── Wishlist Mutations ─────────────────────────────────────────────────
+  const wishlistCount = wishlist.length;
+  const isInWishlist = (productId: string) => wishlist.some((w) => w.productId === productId);
+
+  const toggleWishlist = async (productId: string) => {
+    if (!requireAuth('save items to your wishlist')) return;
+    const alreadySaved = isInWishlist(productId);
+    setWishlistLoading(true);
+    try {
+      if (alreadySaved) {
+        await wishlistApi.removeWishlistItem(productId);
+        setWishlist((prev) => prev.filter((w) => w.productId !== productId));
+        showToast('Removed from your wishlist', 'info');
+      } else {
+        await wishlistApi.addWishlistItem(productId);
+        showToast('Saved to your wishlist', 'success');
+        refreshWishlist();
+      }
+    } catch (err) {
+      showToast(errorMessage(err, 'Could not update your wishlist.'), 'error');
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
+  // Wishlist items don't carry variants, so a product sold in sizes is sent
+  // to its page to pick one instead of being added without a size.
+  const moveToCartFromWishlist = async (productId: string) => {
+    const item = wishlist.find((w) => w.productId === productId);
+    if (item?.product) {
+      try {
+        const detail = await getProductBySlug(item.product.slug);
+        if (detail.variants.length > 0) {
+          showToast('Choose a size to add this to your cart.', 'info');
+          navigate(`/products/${item.product.slug}`);
+          return;
+        }
+      } catch (err) {
+        showToast(errorMessage(err, 'Could not load this product.'), 'error');
+        return;
+      }
+    }
+    await addToCart(productId, 1);
+    try {
+      await wishlistApi.removeWishlistItem(productId);
+      setWishlist((prev) => prev.filter((w) => w.productId !== productId));
+    } catch (err) {
+      showToast(errorMessage(err, 'Added to cart, but could not remove it from your wishlist.'), 'warning');
+    }
+  };
+
+  // ─── Checkout ───────────────────────────────────────────────────────────
+  const submitCheckout = async (address: DeliveryAddress): Promise<CheckoutResult> => {
+    const result = await checkoutApi.checkout({
+      deliveryAddressLine1: address.line1,
+      deliveryAddressLine2: address.line2,
+      deliveryCity: address.city,
+      deliveryStateProvince: address.stateProvince,
+      deliveryPostalCode: address.postalCode,
+      deliveryCountryCode: address.countryCode
+    });
+    // The real Sales Order empties the cart server-side, and this is a
+    // new order in the customer's own history — resync both rather than
+    // assume, so the UI can never drift from VEYONN's own state.
+    refreshCart();
+    refreshOrders();
+    return result;
+  };
+
+  const fetchOrder = async (id: string): Promise<Order | null> => {
+    try {
+      const detail = await ordersApi.getOrder(id);
+      return {
+        id: detail.id,
+        orderNumber: detail.orderNumber,
+        documentStatus: detail.documentStatus,
+        salesChannel: detail.salesChannel,
+        createdAt: detail.createdAt,
+        total: detail.total,
+        lines: detail.lines,
+        deliveryAddress: detail.deliveryAddress
+          ? {
+              line1: detail.deliveryAddress.line1,
+              line2: detail.deliveryAddress.line2 ?? undefined,
+              city: detail.deliveryAddress.city,
+              stateProvince: detail.deliveryAddress.stateProvince,
+              postalCode: detail.deliveryAddress.postalCode,
+              countryCode: detail.deliveryAddress.countryCode
+            }
+          : null,
+        payment: detail.payment
+      };
+    } catch (err) {
+      showToast(errorMessage(err, 'Could not load this order.'), 'error');
+      return null;
+    }
+  };
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -288,11 +502,19 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('d38_recent_searches');
-      return saved ? JSON.parse(saved) : ['ECE 22.06 Helmets', 'Rynox Stealth Air', 'Motul Chain Lube', 'Tail bag'];
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return ['ECE 22.06 Helmets', 'Rynox Stealth Air'];
+      return [];
     }
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('d38_recent_searches', JSON.stringify(recentSearches));
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [recentSearches]);
 
   const addRecentSearch = (term: string) => {
     if (!term.trim()) return;
@@ -318,60 +540,24 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
   const closeSizeGuide = () => setIsSizeGuideOpen(false);
 
-  // User State
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    try {
-      const saved = localStorage.getItem('d38_user');
-      return saved ? JSON.parse(saved) : DEFAULT_USER;
-    } catch {
-      return DEFAULT_USER;
-    }
-  });
-
-  const [savedAddresses, setSavedAddresses] = useState<UserAddress[]>(() => {
-    try {
-      const saved = localStorage.getItem('d38_addresses');
-      return saved ? JSON.parse(saved) : DEFAULT_ADDRESSES;
-    } catch {
-      return DEFAULT_ADDRESSES;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('d38_addresses', JSON.stringify(savedAddresses));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [savedAddresses]);
-
-  // Orders State
-  const [orders, setOrders] = useState<Order[]>(() => {
-    try {
-      const saved = localStorage.getItem('d38_orders');
-      return saved ? JSON.parse(saved) : INITIAL_ORDERS;
-    } catch {
-      return INITIAL_ORDERS;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('d38_orders', JSON.stringify(orders));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [orders]);
-
-  // Recently Viewed
+  // Recently Viewed — a local-only browsing convenience (never presented
+  // as backend-synced data; VEYONN has no such capability).
   const [recentlyViewed, setRecentlyViewed] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('d38_recent_products');
-      return saved ? JSON.parse(saved) : ['prod-mt-thunder-4-sv', 'prod-rynox-stealth-air-pro'];
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
   });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('d38_recent_products', JSON.stringify(recentlyViewed));
+    } catch {
+      // Ignore storage failures.
+    }
+  }, [recentlyViewed]);
 
   const addRecentlyViewed = (productId: string) => {
     setRecentlyViewed(prev => [productId, ...prev.filter(id => id !== productId)].slice(0, 10));
@@ -388,263 +574,6 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setShopFilters(DEFAULT_FILTERS);
   };
 
-  // Toasts
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const showToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      dismissToast(id);
-    }, 4000);
-  };
-
-  const dismissToast = (id: string) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  };
-
-  // Cart Helpers
-  const addToCart = (
-    product: Product,
-    quantity = 1,
-    selectedVariant?: ProductVariant,
-    selectedColor?: string,
-    selectedSize?: string
-  ) => {
-    const color = selectedColor || selectedVariant?.colorName || (product.availableColors.length > 0 ? product.availableColors[0].name : undefined);
-    const size = selectedSize || selectedVariant?.size || (product.availableSizes.length > 0 ? product.availableSizes[0] : undefined);
-    const itemId = `${product.id}-${color || 'def'}-${size || 'def'}`;
-    const unitPrice = selectedVariant?.price || product.price;
-
-    setCart(prev => {
-      const existing = prev.find(item => item.id === itemId);
-      if (existing) {
-        return prev.map(item =>
-          item.id === itemId
-            ? { ...item, quantity: item.quantity + quantity, totalPrice: (item.quantity + quantity) * unitPrice }
-            : item
-        );
-      } else {
-        return [
-          ...prev,
-          {
-            id: itemId,
-            productId: product.id,
-            product,
-            selectedColor: color,
-            selectedSize: size,
-            selectedVariant,
-            quantity,
-            unitPrice,
-            totalPrice: unitPrice * quantity
-          }
-        ];
-      }
-    });
-
-    showToast(`Added "${product.name}" to cart`, 'success');
-    setIsCartOpen(true);
-  };
-
-  const updateCartQuantity = (itemId: string, delta: number) => {
-    setCart(prev => {
-      return prev
-        .map(item => {
-          if (item.id === itemId) {
-            const newQty = item.quantity + delta;
-            if (newQty <= 0) return null;
-            return {
-              ...item,
-              quantity: newQty,
-              totalPrice: newQty * item.unitPrice
-            };
-          }
-          return item;
-        })
-        .filter(Boolean) as CartItem[];
-    });
-  };
-
-  const removeFromCart = (itemId: string) => {
-    setCart(prev => prev.filter(item => item.id !== itemId));
-    showToast('Item removed from cart', 'info');
-  };
-
-  const clearCart = () => {
-    setCart([]);
-  };
-
-  // Coupon Logic
-  const applyCoupon = (code: string) => {
-    const clean = code.trim().toUpperCase();
-    if (clean === 'DISTRICT10' || clean === 'FIRSTGEAR') {
-      setAppliedCoupon(clean);
-      setCouponDiscountPercent(10);
-      showToast(`Coupon ${clean} applied: 10% OFF your entire order!`, 'success');
-      return { success: true, message: '10% discount applied successfully!' };
-    } else if (clean === 'RIDER100') {
-      setAppliedCoupon(clean);
-      setCouponDiscountPercent(15);
-      showToast(`Rider VIP code applied: 15% OFF!`, 'success');
-      return { success: true, message: 'VIP 15% discount applied!' };
-    } else {
-      showToast('Invalid coupon code. Try "DISTRICT10" or "FIRSTGEAR"', 'warning');
-      return { success: false, message: 'Invalid or expired coupon code.' };
-    }
-  };
-
-  const removeCoupon = () => {
-    setAppliedCoupon(null);
-    setCouponDiscountPercent(0);
-    showToast('Coupon removed', 'info');
-  };
-
-  // Cart Totals
-  const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const cartSubtotal = cart.reduce((acc, item) => acc + item.totalPrice, 0);
-  const cartDiscount = Math.round((cartSubtotal * couponDiscountPercent) / 100);
-  const cartShipping = cartSubtotal >= 2999 || cartSubtotal === 0 ? 0 : 199;
-  const cartTotal = Math.max(0, cartSubtotal - cartDiscount + cartShipping);
-
-  // Wishlist Helpers
-  const wishlistCount = wishlist.length;
-  const isInWishlist = (productId: string) => wishlist.includes(productId);
-
-  const toggleWishlist = (productId: string) => {
-    const product = PRODUCTS.find(p => p.id === productId);
-    const name = product ? product.name : 'Product';
-
-    if (wishlist.includes(productId)) {
-      setWishlist(prev => prev.filter(id => id !== productId));
-      showToast(`Removed "${name}" from your wishlist`, 'info');
-    } else {
-      setWishlist(prev => [...prev, productId]);
-      showToast(`Saved "${name}" to your wishlist`, 'success');
-    }
-  };
-
-  const moveToCartFromWishlist = (product: Product, size?: string) => {
-    addToCart(product, 1, undefined, undefined, size || (product.availableSizes[0] || undefined));
-    toggleWishlist(product.id);
-  };
-
-  // Auth Helpers
-  const login = (email: string, name?: string) => {
-    const user: UserProfile = {
-      id: `usr-${Date.now()}`,
-      name: name || email.split('@')[0] || 'Rider',
-      email,
-      phone: '+91 98421 55678',
-      bikeModel: 'KTM 390 Adventure',
-      ridingExperienceYears: 4,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      memberSince: 'August 2026',
-      riderPoints: 500
-    };
-    setCurrentUser(user);
-    try {
-      localStorage.setItem('d38_user', JSON.stringify(user));
-    } catch (e) {
-      console.error(e);
-    }
-    showToast(`Welcome back, ${user.name}!`, 'success');
-  };
-
-  const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('d38_user');
-    showToast('You have been logged out safely.', 'info');
-  };
-
-  const updateProfile = (data: Partial<UserProfile>) => {
-    if (!currentUser) return;
-    const updated = { ...currentUser, ...data };
-    setCurrentUser(updated);
-    localStorage.setItem('d38_user', JSON.stringify(updated));
-    showToast('Profile updated successfully!', 'success');
-  };
-
-  // Address Helpers
-  const addAddress = (address: Omit<UserAddress, 'id'>) => {
-    const newAddr: UserAddress = {
-      ...address,
-      id: `addr-${Date.now()}`
-    };
-    if (newAddr.isDefault) {
-      setSavedAddresses(prev => prev.map(a => ({ ...a, isDefault: false })).concat(newAddr));
-    } else {
-      setSavedAddresses(prev => [...prev, newAddr]);
-    }
-    showToast('New shipping address saved', 'success');
-  };
-
-  const updateAddress = (id: string, updated: Partial<UserAddress>) => {
-    setSavedAddresses(prev =>
-      prev.map(a => (a.id === id ? { ...a, ...updated } : updated.isDefault ? { ...a, isDefault: false } : a))
-    );
-    showToast('Address updated', 'success');
-  };
-
-  const deleteAddress = (id: string) => {
-    setSavedAddresses(prev => prev.filter(a => a.id !== id));
-    showToast('Address removed', 'info');
-  };
-
-  const setDefaultAddress = (id: string) => {
-    setSavedAddresses(prev => prev.map(a => ({ ...a, isDefault: a.id === id })));
-    showToast('Default delivery address updated', 'success');
-  };
-
-  // Order Creation
-  const createOrder = (orderData: Omit<Order, 'id' | 'orderNumber' | 'date' | 'timeline' | 'trackingNumber' | 'courierName'>): Order => {
-    const randomNum = Math.floor(10000 + Math.random() * 90000);
-    const orderNumber = `D38-${randomNum}`;
-    const newOrder: Order = {
-      ...orderData,
-      id: `ord-${Date.now()}`,
-      orderNumber,
-      date: new Date().toISOString(),
-      trackingNumber: `DTDC-TRZ-${randomNum}`,
-      courierName: 'DTDC Air Express / Trichy Direct',
-      timeline: [
-        {
-          status: 'Order Confirmed',
-          date: 'Just now',
-          description: `Payment received via ${orderData.paymentMethod}. Order sent to Trichy warehouse packing desk.`,
-          completed: true,
-          current: true
-        },
-        {
-          status: 'Packed at Trichy Hub',
-          date: 'Expected today',
-          description: 'Quality inspection and shock-proof packaging at Salai Road store hub',
-          location: 'District 38 Trichy Central Hub',
-          completed: false
-        },
-        {
-          status: 'Dispatched',
-          date: 'Expected tomorrow morning',
-          description: 'Package dispatched for highway courier route',
-          completed: false
-        },
-        {
-          status: 'Delivered',
-          date: orderData.estimatedDelivery,
-          description: 'Scheduled doorstep delivery',
-          completed: false
-        }
-      ]
-    };
-
-    setOrders(prev => [newOrder, ...prev]);
-    clearCart();
-    return newOrder;
-  };
-
-  const getOrderById = (orderId: string) => {
-    return orders.find(o => o.id === orderId || o.orderNumber === orderId);
-  };
-
   return (
     <ShopContext.Provider
       value={{
@@ -654,13 +583,8 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         cart,
         cartCount,
         cartSubtotal,
-        cartDiscount,
-        cartShipping,
-        cartTotal,
-        appliedCoupon,
-        couponDiscountPercent,
-        applyCoupon,
-        removeCoupon,
+        cartCurrency,
+        cartLoading,
         addToCart,
         updateCartQuantity,
         removeFromCart,
@@ -669,6 +593,7 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsCartOpen,
         wishlist,
         wishlistCount,
+        wishlistLoading,
         isInWishlist,
         toggleWishlist,
         moveToCartFromWishlist,
@@ -690,17 +615,15 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         closeSizeGuide,
         currentUser,
         isAuthenticated: !!currentUser,
+        authLoading,
         login,
+        register,
         logout,
-        updateProfile,
-        savedAddresses,
-        addAddress,
-        updateAddress,
-        deleteAddress,
-        setDefaultAddress,
+        submitCheckout,
         orders,
-        createOrder,
-        getOrderById,
+        ordersLoading,
+        refreshOrders,
+        fetchOrder,
         recentlyViewed,
         addRecentlyViewed,
         shopFilters,

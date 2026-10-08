@@ -1,15 +1,37 @@
 import React from 'react';
-import { Heart, Trash2, ShoppingBag, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Heart, ArrowRight } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
-import { PRODUCTS } from '../data/products';
+import { adaptListItem } from '../lib/product-adapter';
 import { ProductCard } from '../components/commerce/ProductCard';
+import { useNoIndex } from '../hooks/use-noindex';
 
 export const WishlistPage: React.FC = () => {
-  const { wishlist, clearWishlist, navigate } = useShop();
+  const { wishlist, wishlistLoading, navigate, isAuthenticated, authLoading } = useShop();
 
-  const wishlistedProducts = PRODUCTS.filter(p => wishlist.includes(p.id));
+  useNoIndex('Your Wishlist');
 
-  if (wishlist.length === 0) {
+  // Wait for a stored session to be restored before deciding the visitor
+  // is signed out, or a refresh would bounce a signed-in customer to login.
+  if (authLoading) return null;
+
+  if (!isAuthenticated) {
+    navigate('/login');
+    return null;
+  }
+
+  const wishlistedProducts = wishlist
+    .filter((item) => item.product !== null)
+    .map((item) => adaptListItem(item.product!));
+
+  if (wishlistLoading && wishlist.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-24 text-center">
+        <p className="text-sm text-neutral-400">Loading your wishlist…</p>
+      </div>
+    );
+  }
+
+  if (wishlistedProducts.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-16 text-center space-y-6">
         <div className="w-20 h-20 rounded-full bg-neutral-100 flex items-center justify-center mx-auto text-neutral-400">
@@ -39,22 +61,12 @@ export const WishlistPage: React.FC = () => {
           <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950 tracking-tight flex items-center space-x-3">
             <span>Saved Riding Gear</span>
             <span className="text-sm font-bold px-2.5 py-0.5 rounded-full bg-orange-100 text-orange-800">
-              {wishlist.length} {wishlist.length === 1 ? 'item' : 'items'}
+              {wishlistedProducts.length} {wishlistedProducts.length === 1 ? 'item' : 'items'}
             </span>
           </h1>
           <p className="text-xs text-neutral-500 mt-1">
             Keep track of your dream helmet graphics, armor upgrades, and luggage kits.
           </p>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={clearWishlist}
-            className="flex items-center space-x-1 text-xs font-semibold text-neutral-500 hover:text-red-600 transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Clear Wishlist</span>
-          </button>
         </div>
       </div>
 
