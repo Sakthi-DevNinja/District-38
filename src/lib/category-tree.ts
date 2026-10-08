@@ -32,7 +32,20 @@ export function buildCategoryTree(categories: PublicCategory[]): CategoryNode[] 
     if (parent) parent.children.push(node)
     else roots.push(node)
   })
-  return roots
+  return sortFeaturedFirst(roots)
+}
+
+// Top-level categories shown first, in this order: the header shows the
+// first four; the mobile menu, footer and home tiles follow the same order.
+export const FEATURED_CATEGORY_SLUGS = ['helmets', 'riding-gear', 'protection-parts', 'bike-accessories']
+
+function sortFeaturedFirst(roots: CategoryNode[]): CategoryNode[] {
+  const rank = (c: CategoryNode) => {
+    const i = FEATURED_CATEGORY_SLUGS.indexOf(c.slug)
+    return i === -1 ? FEATURED_CATEGORY_SLUGS.length : i
+  }
+  // Array.prototype.sort is stable, so the rest keep the API order.
+  return [...roots].sort((a, b) => rank(a) - rank(b))
 }
 
 // Decorative photos for categories we already have artwork for, matched by
