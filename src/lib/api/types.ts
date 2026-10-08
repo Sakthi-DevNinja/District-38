@@ -32,6 +32,9 @@ export interface PublicVariant {
   name: string | null
   price: PublicPrice
   inStock: boolean
+  /** Real stock is inStock; ON_ORDER can still be ordered and ships in dispatchDays. */
+  availability: 'IN_STOCK' | 'ON_ORDER' | 'OUT_OF_STOCK'
+  dispatchDays?: string
   availableQuantity: number
 }
 
@@ -49,6 +52,9 @@ export interface PublicProductListItem {
   category: PublicRef | null
   price: PublicPrice
   inStock: boolean
+  /** Real stock is inStock; ON_ORDER can still be ordered and ships in dispatchDays. */
+  availability: 'IN_STOCK' | 'ON_ORDER' | 'OUT_OF_STOCK'
+  dispatchDays?: string
   isFeatured: boolean
   isBestSeller: boolean
   /** As entered in the catalog, e.g. ["Touring", "helmet"]. */

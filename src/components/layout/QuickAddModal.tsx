@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, ShoppingBag, PackageCheck, PackageX, Ruler } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
+import { dispatchText, isOrderable } from '../../lib/availability';
 import { useProduct } from '../../hooks/use-product';
 import { adaptDetail } from '../../lib/product-adapter';
 import { VariantPicker } from '../commerce/VariantPicker';
@@ -21,10 +22,17 @@ const QuickAddContent: React.FC<{ product: Product }> = ({ product }) => {
   const [selectedVariantId, setSelectedVariantId] = useState('');
   const [showVariantError, setShowVariantError] = useState(false);
 
-  const autoVariantId = variants.length === 1 && variants[0].inStock ? variants[0].id : '';
+  const autoVariantId = variants.length === 1 && isOrderable(variants[0]) ? variants[0].id : '';
   const selectedVariant = variants.find((v) => v.id === (selectedVariantId || autoVariantId));
   const displayPrice = selectedVariant?.price ?? product.price;
-  const inStock = selectedVariant ? selectedVariant.inStock : product.inStock;
+  const inStockNow = selectedVariant ? selectedVariant.inStock : product.inStock;
+  // Orderable: in stock now, or available on order.
+  const inStock = selectedVariant
+    ? isOrderable(selectedVariant)
+    : variants.length > 0
+      ? variants.some(isOrderable)
+      : isOrderable(product);
+  const onOrderDays = selectedVariant?.dispatchDays ?? product.dispatchDays;
 
   const handleAddToCart = async () => {
     if (variants.length > 0 && !selectedVariant) {
@@ -116,9 +124,11 @@ const QuickAddContent: React.FC<{ product: Product }> = ({ product }) => {
               ) : (
                 <PackageX className="w-4 h-4 text-red-500" />
               )}
-              <span>{inStock ? 'In Stock & Ready to Ship' : 'Currently Out of Stock'}</span>
+              <span>{!inStock ? 'Currently Out of Stock' : inStockNow ? 'In Stock & Ready to Ship' : 'Available on Order'}</span>
             </span>
-            {inStock && <span className="text-neutral-500 text-[11px]">Same-day dispatch</span>}
+            {inStock && (
+              <span className="text-neutral-500 text-[11px]">{inStockNow ? 'Same-day dispatch' : dispatchText(onOrderDays)}</span>
+            )}
           </div>
 
           <div className="space-y-2">

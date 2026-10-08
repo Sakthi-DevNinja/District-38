@@ -1,5 +1,6 @@
 import React from 'react';
 import { ProductVariant } from '../../types';
+import { dispatchText, isOrderable } from '../../lib/availability';
 
 interface VariantPickerProps {
   variants: ProductVariant[];
@@ -35,8 +36,8 @@ export const VariantPicker: React.FC<VariantPickerProps> = ({
               key={v.id}
               type="button"
               onClick={() => onSelect(v.id)}
-              disabled={!v.inStock}
-              title={v.inStock ? undefined : 'Out of stock'}
+              disabled={!isOrderable(v)}
+              title={!isOrderable(v) ? 'Out of stock' : v.inStock ? undefined : `Available on order, ${dispatchText(v.dispatchDays)}`}
               className={`py-2.5 px-3 text-xs font-semibold rounded-xl border transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:line-through ${
                 isSelected
                   ? 'border-neutral-950 bg-neutral-950 text-white shadow-sm'
@@ -50,6 +51,9 @@ export const VariantPicker: React.FC<VariantPickerProps> = ({
       </div>
       {showError && !selected && (
         <p className="mt-2 text-xs font-medium text-red-600">Please choose a size.</p>
+      )}
+      {selected && !selected.inStock && isOrderable(selected) && (
+        <p className="mt-2 text-xs font-medium text-amber-700">This size is available on order and {dispatchText(selected.dispatchDays)}.</p>
       )}
       {selected && selected.inStock && selected.stockCount > 0 && selected.stockCount <= 5 && (
         <p className="mt-2 text-xs font-medium text-orange-600">Only {selected.stockCount} left in this size</p>

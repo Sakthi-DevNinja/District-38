@@ -1,3 +1,5 @@
+export type Availability = 'IN_STOCK' | 'ON_ORDER' | 'OUT_OF_STOCK';
+
 export interface ProductVariant {
   id: string;
   name: string;
@@ -6,6 +8,9 @@ export interface ProductVariant {
   size?: string;
   sku: string;
   inStock: boolean;
+  /** IN_STOCK, ON_ORDER (orderable at 0 stock, ships in dispatchDays) or OUT_OF_STOCK. */
+  availability?: Availability;
+  dispatchDays?: string;
   stockCount: number;
   price?: number;
   originalPrice?: number;
@@ -58,6 +63,9 @@ export interface Product {
   isFeatured?: boolean;
   isOnSale?: boolean;
   inStock: boolean;
+  /** IN_STOCK, ON_ORDER (orderable at 0 stock, ships in dispatchDays) or OUT_OF_STOCK. */
+  availability?: Availability;
+  dispatchDays?: string;
   stockCount: number;
   images: string[];
   thumbnail: string;

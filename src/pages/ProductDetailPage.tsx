@@ -11,7 +11,8 @@ import {
   Info,
   MapPin,
   Flame,
-  ArrowRight
+  ArrowRight,
+  Clock
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { useProduct } from '../hooks/use-product';
@@ -23,6 +24,7 @@ import { ReviewSection } from '../components/commerce/ReviewSection';
 import { PincodeChecker } from '../components/commerce/PincodeChecker';
 import { ProductGrid } from '../components/commerce/ProductGrid';
 import { VariantPicker } from '../components/commerce/VariantPicker';
+import { dispatchText, isOrderable } from '../lib/availability';
 import { usePageMeta } from '../hooks/use-page-meta';
 import { setStructuredData } from '../lib/seo';
 import { resolveImageUrl } from '../lib/api/client';
@@ -150,7 +152,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
   // variant is picked automatically.
   const hasVariants = product.variants.length > 0;
   const autoVariantId =
-    product.variants.length === 1 && product.variants[0].inStock ? product.variants[0].id : '';
+    product.variants.length === 1 && isOrderable(product.variants[0]) ? product.variants[0].id : '';
   const selectedVariant = product.variants.find((v) => v.id === (selectedVariantId || autoVariantId));
   const displayPrice = selectedVariant?.price ?? product.price;
   const displayOriginalPrice = selectedVariant ? selectedVariant.originalPrice : product.originalPrice;
@@ -159,12 +161,19 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
       ? Math.round(((displayOriginalPrice - displayPrice) / displayOriginalPrice) * 100)
       : null;
 
-  // The chosen size decides; before one is chosen, any size in stock counts.
+  // The chosen size decides; before one is chosen, any orderable size counts.
+  // Orderable = in stock now, or available on order (ships in a few days).
   const isAvailable = selectedVariant
+    ? isOrderable(selectedVariant)
+    : hasVariants
+      ? product.variants.some(isOrderable)
+      : isOrderable(product);
+  const isInStockNow = selectedVariant
     ? selectedVariant.inStock
     : hasVariants
       ? product.variants.some((v) => v.inStock)
       : product.inStock;
+  const onOrderDays = selectedVariant?.dispatchDays ?? product.dispatchDays;
 
   const addSelectionToCart = async () => {
     if (!isAvailable) return false;
@@ -365,13 +374,21 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
 
           {/* Stock Badge & Pincode Checker */}
           <div className="space-y-4 pt-2">
-            {isAvailable ? (
+            {isAvailable && isInStockNow ? (
               <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between">
                 <span className="flex items-center space-x-1.5 font-medium">
                   <Check className="w-4 h-4 text-emerald-600" />
                   <span>Ready for dispatch</span>
                 </span>
                 <span className="text-[11px] font-bold text-emerald-800">Same-Day Courier</span>
+              </div>
+            ) : isAvailable ? (
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-center justify-between">
+                <span className="flex items-center space-x-1.5 font-medium">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  <span>Available on order</span>
+                </span>
+                <span className="text-[11px] font-bold text-amber-800">{dispatchText(onOrderDays)}</span>
               </div>
             ) : (
               <div className="p-3 bg-neutral-100 rounded-xl border border-neutral-200 text-xs text-neutral-700 font-medium">
