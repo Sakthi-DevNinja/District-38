@@ -5,9 +5,19 @@ import { htmlToText, parsePrice } from '../normalize.mjs'
 // Sizes are usually not in JSON-LD, so these products come out without
 // variants and are flagged for the owner to add sizes.
 
+/** Sitemaps named in robots.txt first, then the usual locations. */
+async function sitemapRoots(fetcher, baseUrl) {
+  await fetcher.allowedByRobots(`${baseUrl}/`)
+  const listed = fetcher.sitemapsFor(baseUrl)
+  return [...new Set([...listed, `${baseUrl}/sitemap.xml`, `${baseUrl}/sitemap_index.xml`])]
+}
+
 export async function detect(fetcher, baseUrl) {
-  const entry = await fetcher.getText(`${baseUrl}/sitemap.xml`)
-  return Boolean(entry && entry.status === 200 && /<(urlset|sitemapindex)/.test(entry.body))
+  for (const url of await sitemapRoots(fetcher, baseUrl)) {
+    const entry = await fetcher.getText(url)
+    if (entry && entry.status === 200 && /<(urlset|sitemapindex)/.test(entry.body)) return true
+  }
+  return false
 }
 
 function locs(xml) {
@@ -17,7 +27,7 @@ function locs(xml) {
 /** All page URLs from the sitemap (following sitemap indexes) matching the pattern. */
 async function productUrls(fetcher, baseUrl, pattern) {
   const re = new RegExp(pattern ?? '/products?/')
-  const queue = [`${baseUrl}/sitemap.xml`]
+  const queue = await sitemapRoots(fetcher, baseUrl)
   const seen = new Set()
   const urls = []
   while (queue.length) {
@@ -83,7 +93,7 @@ export function fromHtml(html, url) {
     sourceId: String(product.sku ?? product.productID ?? url),
     name: htmlToText(product.name),
     brand: htmlToText(brand ?? ''),
-    sourceCategory: htmlToText(product.category ?? ''),
+    sourceCategories: [htmlToText(product.category ?? '')].filter(Boolean),
     description,
     tags: [],
     sellingPrice: price,

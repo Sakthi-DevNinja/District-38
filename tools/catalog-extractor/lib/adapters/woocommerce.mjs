@@ -30,36 +30,44 @@ function money(value, prices) {
   return Number.isFinite(n) && n > 0 ? n : null
 }
 
-function attributeTerms(p, names) {
-  const attr = (p.attributes ?? []).find((a) => names.includes(String(a.name).toLowerCase()))
-  return (attr?.terms ?? []).map((t) => t.name)
-}
+const SIZE_NAMES = ['size', 'sizes', 'pa_size', 'helmet size']
+const COLOUR_NAMES = ['color', 'colour', 'colors', 'colours', 'pa_color', 'pa_colour']
+
+const isOneOf = (name, names) => names.includes(String(name ?? '').toLowerCase())
 
 export function toRaw(p) {
   const regular = money(p.prices?.regular_price, p.prices)
   const current = money(p.prices?.price, p.prices)
-  const sizes = attributeTerms(p, ['size', 'sizes', 'pa_size'])
-  const colours = attributeTerms(p, ['color', 'colour', 'pa_color', 'pa_colour'])
-  // Brand: a brands plugin field, a "Brand" attribute, or left blank for review.
-  const brand =
-    p.brands?.[0]?.name ?? attributeTerms(p, ['brand', 'brands', 'pa_brand'])[0] ?? ''
+  const brandAttr = (p.attributes ?? []).find((a) => isOneOf(a.name, ['brand', 'brands', 'pa_brand']))
 
-  // Variation prices need one extra request each; the parent price is used
-  // and the owner reviews any size that sells at a different price.
-  const variants = []
-  for (const size of sizes.length ? sizes : ['']) {
-    for (const colour of colours.length ? colours : ['']) {
-      if (!size && !colour) continue
-      variants.push({ sku: '', size, colour, sellingPrice: current, mrp: regular > current ? regular : null, available: p.is_in_stock !== false })
-    }
-  }
+  // The site's own size/colour combinations. Variation prices need one
+  // extra request each, so the parent price is used; the owner reviews
+  // any size that sells at a different price.
+  const variants = (p.variations ?? [])
+    .map((variation) => {
+      const attrs = variation.attributes ?? []
+      const size = attrs.find((a) => isOneOf(a.name, SIZE_NAMES))?.value ?? ''
+      const colour = attrs.find((a) => isOneOf(a.name, COLOUR_NAMES))?.value ?? ''
+      return {
+        sku: '',
+        size: htmlToText(size),
+        colour: htmlToText(colour),
+        sellingPrice: current,
+        mrp: regular > current ? regular : null,
+        available: p.is_in_stock !== false,
+      }
+    })
+    .filter((v) => v.size || v.colour)
 
   return {
     sourceUrl: p.permalink,
     sourceId: String(p.id),
+    sku: p.sku || '',
     name: htmlToText(p.name),
-    brand: htmlToText(brand),
-    sourceCategory: p.categories?.[0]?.name ? htmlToText(p.categories[0].name) : '',
+    // Brands plugin or a Brand attribute; otherwise the build step looks
+    // for a known brand among the categories.
+    brand: htmlToText(p.brands?.[0]?.name ?? brandAttr?.terms?.[0]?.name ?? ''),
+    sourceCategories: (p.categories ?? []).map((c) => htmlToText(c.name)),
     description: htmlToText(p.description),
     shortDescription: htmlToText(p.short_description),
     tags: (p.tags ?? []).map((t) => htmlToText(t.name)),

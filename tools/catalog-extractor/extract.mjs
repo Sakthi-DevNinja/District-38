@@ -60,7 +60,7 @@ async function recon(url, options) {
   for await (const p of ADAPTERS[adapter].products(fetcher, baseUrl, { limit: 5, productUrlPattern: options.pattern })) sample.push(p)
   console.log(`Sample of ${sample.length} product(s):`)
   for (const p of sample) {
-    console.log(`  - ${p.brand || '(no brand)'} | ${p.name} | ₹${p.sellingPrice ?? '?'}${p.mrp ? ` (MRP ₹${p.mrp})` : ''} | ${p.variants.length} sizes/options | ${p.images.length} images | category: ${p.sourceCategory || '(none)'}`)
+    console.log(`  - ${p.brand || '(no brand)'} | ${p.name} | ₹${p.sellingPrice ?? '?'}${p.mrp ? ` (MRP ₹${p.mrp})` : ''} | ${p.variants.length} sizes/options | ${p.images.length} images | categories: ${(p.sourceCategories ?? []).join(' | ') || '(none)'}`)
   }
   console.log(`Requests: ${fetcher.stats.network} network, ${fetcher.stats.cached} cached, ${fetcher.stats.blocked} blocked by robots.txt`)
 }
@@ -106,10 +106,16 @@ async function run(options) {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
     await mkdir(join(out, 'snapshots'), { recursive: true })
     await writeFile(join(out, 'snapshots', `${source.name}-${stamp}.json`), JSON.stringify({ source, adapter: adapterName, products }, null, 2))
-    sourceResults.push({ source: source.name, products })
+    sourceResults.push({ source: source.name, products, titleCase: Boolean(source.titleCase) })
   }
 
-  const staging = buildStaging(sourceResults, { categoryMap, brandMap })
+  const staging = buildStaging(sourceResults, {
+    categoryMap,
+    brandMap,
+    knownBrands: config.knownBrands ?? [],
+    fitmentCategories: config.fitmentCategories ?? [],
+    keepTags: config.keepTags,
+  })
 
   let images = { rows: [], downloaded: 0, reused: 0 }
   if (!options['skip-images']) {
@@ -125,8 +131,15 @@ async function run(options) {
   await writeCsv(join(stagingDir, 'variants.csv'), HEADERS.variants, staging.variants)
   await writeCsv(join(stagingDir, 'images.csv'), HEADERS.images, images.rows)
   await writeCsv(join(reportsDir, 'needs-review.csv'), ['productCode', 'name', 'problems', 'sourceUrls'], staging.issues)
+  // Products with no photo on any source: imported as unpublished drafts;
+  // staff add a photo in Pilot before publishing.
+  await writeCsv(
+    join(reportsDir, 'needs-photo.csv'),
+    ['productCode', 'name', 'sourceUrls'],
+    staging.issues.filter((i) => i.problems.includes('no images')),
+  )
   await writeCsv(join(reportsDir, 'skipped-duplicates.csv'), ['productCode', 'name', 'keptSource', 'keptUrl', 'keptPrice', 'skippedSource', 'skippedUrl', 'skippedPrice'], staging.duplicates)
-  await writeCsv(join(reportsDir, 'unmapped-categories.csv'), ['sourceCategory', 'products'], staging.unmappedCategories)
+  await writeCsv(join(reportsDir, 'unmapped-categories.csv'), ['sourceCategories', 'products'], staging.unmappedCategories)
 
   const summary = [
     `Products: ${staging.products.length} (from ${sourceResults.reduce((n, s) => n + s.products.length, 0)} source listings)`,

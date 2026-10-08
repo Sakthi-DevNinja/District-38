@@ -45,7 +45,7 @@ export function toRaw(p, baseUrl) {
     sourceId: String(p.id),
     name: String(p.title ?? '').trim(),
     brand: String(p.vendor ?? '').trim(),
-    sourceCategory: String(p.product_type ?? '').trim(),
+    sourceCategories: [String(p.product_type ?? '').trim()].filter(Boolean),
     description: htmlToText(p.body_html),
     tags: tags.map((t) => t.trim()).filter(Boolean),
     sellingPrice: first?.sellingPrice ?? null,
@@ -54,7 +54,10 @@ export function toRaw(p, baseUrl) {
       .slice()
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       .map((img) => img.src)
-      .filter(Boolean),
+      .filter(Boolean)
+      // Shopify's CDN resizes on request: 1600px is plenty for the shop and
+      // keeps multi-MB originals out of the download.
+      .map((src) => `${src}${src.includes('?') ? '&' : '?'}width=1600`),
     // A "Default Title" variant means the product has no real options.
     variants: variants.length === 1 && !first.size && !first.colour ? [] : variants,
   }

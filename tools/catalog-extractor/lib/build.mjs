@@ -6,7 +6,12 @@ import {
   shortFrom,
   sizeSortKey,
   skuFrom,
+  slugify,
+  titleCaseName,
 } from './normalize.mjs'
+
+/** The storefront's collection tags (src/lib/collections.ts); other source tags are SEO noise. */
+const DEFAULT_KEEP_TAGS = ['ece-22.06', 'touring', 'monsoon', 'city', 'adventure', 'track']
 
 function lookup(map, key) {
   if (!map || !key) return undefined
@@ -17,21 +22,58 @@ function lookup(map, key) {
   return undefined
 }
 
-/** category-map.json values are a path string or { path, hsn }. */
-function mapCategory(categoryMap, sourceCategory) {
-  const hit = lookup(categoryMap, sourceCategory)
-  if (hit === undefined) return { path: '', hsn: '', mapped: false }
-  if (typeof hit === 'string') return { path: hit, hsn: '', mapped: true }
-  return { path: hit.path ?? '', hsn: hit.hsn ?? '', mapped: true }
+/**
+ * category-map.json values: a path string, "" to ignore a category (e.g.
+ * "Flash sale"), or { path, hsn, refine: { "<regex>": "<path>" } } where
+ * refine picks a subcategory from the product name and tags.
+ * Of several mapped source categories, the deepest District 38 path wins.
+ */
+function mapCategory(categoryMap, sourceCategories, text) {
+  let best = null
+  for (const name of sourceCategories) {
+    const hit = lookup(categoryMap, name)
+    if (!hit) continue
+    const entry = typeof hit === 'string' ? { path: hit } : hit
+    if (!entry.path) continue
+    const depth = entry.path.split('>').length
+    if (!best || depth > best.depth) best = { ...entry, depth }
+  }
+  if (!best) return { path: '', hsn: '', mapped: false }
+  let path = best.path
+  for (const [pattern, refined] of Object.entries(best.refine ?? {})) {
+    if (new RegExp(pattern, 'i').test(text)) {
+      path = refined
+      break
+    }
+  }
+  return { path, hsn: best.hsn ?? '', mapped: true }
 }
 
-/** Suggests a certification value and tag from the product text. */
+// Words that don't tell two products apart ("Axor Apex Helmet" and
+// "AXOR APEX MOTORCYCLE HELMET" are the same product).
+const FILLER_WORDS = new Set(['helmet', 'helmets', 'motorcycle', 'bike', 'riding', 'the', 'with', 'for', 'and', 'new'])
+
+function significantWords(name, brand) {
+  const brandWords = new Set(slugify(brand).split('-'))
+  return [...new Set(slugify(name).split('-').filter((w) => w && !FILLER_WORDS.has(w) && !brandWords.has(w)))]
+}
+
+function wordOverlap(a, b) {
+  const setB = new Set(b)
+  const shared = a.filter((w) => setB.has(w)).length
+  return shared / (a.length + b.length - shared || 1)
+}
+
+/**
+ * Certification from the product text, only when the text names it.
+ * A bare "ECE" without its version is not guessed; it is flagged instead.
+ */
 function detectCertification(text) {
   if (/22\.06/.test(text)) return { certification: 'ECE 22.06', tag: 'ece-22.06' }
-  if (/\bECE\b/i.test(text)) return { certification: 'ECE 22.05', tag: 'ece' }
-  if (/\bISI\b/.test(text)) return { certification: 'ISI', tag: 'isi' }
-  if (/\bDOT\b/.test(text)) return { certification: 'DOT', tag: 'dot' }
-  return { certification: '', tag: '' }
+  if (/22\.05/.test(text)) return { certification: 'ECE 22.05', tag: '' }
+  if (/\bDOT\b/i.test(text)) return { certification: 'DOT', tag: '' }
+  if (/\bISI\b/i.test(text)) return { certification: 'ISI', tag: '' }
+  return { certification: '', tag: '', eceVersionUnknown: /\bECE\b/i.test(text) }
 }
 
 /**
@@ -40,7 +82,17 @@ function detectCertification(text) {
  * than once, the first listing is kept whole and the rest are skipped and
  * listed in the duplicates report.
  */
-export function buildStaging(sourceResults, { categoryMap = {}, brandMap = {} } = {}) {
+export function buildStaging(
+  sourceResults,
+  { categoryMap = {}, brandMap = {}, knownBrands = [], fitmentCategories = [], keepTags = DEFAULT_KEEP_TAGS } = {},
+) {
+  // fitmentCategories: ["KTM", …] or { "APRILLA": "Aprilia", … } to fix a bike name.
+  const fitmentEntries = Array.isArray(fitmentCategories)
+    ? fitmentCategories.map((name) => [name, name])
+    : Object.entries(fitmentCategories)
+  const fitment = new Map(fitmentEntries.map(([name, bike]) => [name.trim().toLowerCase(), `fits-${slugify(bike)}`]))
+  const keep = new Set(keepTags.map((t) => t.toLowerCase()))
+
   // Brand spelling: brand-map.json first, then the most common spelling.
   const spellings = new Map()
   for (const { products } of sourceResults) {
@@ -63,14 +115,35 @@ export function buildStaging(sourceResults, { categoryMap = {}, brandMap = {} } 
     return [...counts.entries()].sort((a, b) => b[1] - a[1] || shouty(a[0]) - shouty(b[0]))[0][0]
   }
 
+  // Brands a product can be recognised by when its own brand field is
+  // empty: brands named by the sites themselves plus config.knownBrands.
+  const brandNames = new Map()
+  for (const b of [...knownBrands, ...[...spellings.keys()].map(canonicalBrand)]) {
+    brandNames.set(b.trim().toLowerCase(), canonicalBrand(b) || b)
+  }
+  const brandFromCategories = (categories) =>
+    categories.map((c) => brandNames.get(c.trim().toLowerCase())).find(Boolean) ?? ''
+  const brandFromName = (name) => {
+    const lower = name.toLowerCase()
+    const match = [...brandNames.keys()]
+      .filter((b) => lower.startsWith(`${b} `))
+      .sort((a, b) => b.length - a.length)[0]
+    return match ? brandNames.get(match) : ''
+  }
+  const allBrandSpellings = [...new Set(brandNames.values())]
+
   // Group listings of the same product (across or within sites) by import key.
   const groups = new Map()
-  for (const { source, products } of sourceResults) {
+  for (const { source, products, titleCase } of sourceResults) {
     for (const p of products) {
-      const brand = canonicalBrand(p.brand)
-      const key = makeImportKey(brand, p.name)
+      const categories = p.sourceCategories ?? []
+      const brand = canonicalBrand(p.brand) || brandFromCategories(categories) || brandFromName(p.name)
+      const name = titleCase ? titleCaseName(p.name, allBrandSpellings) : p.name
+      // Same brand and the same significant words (in any order) = same product.
+      const words = significantWords(name, brand)
+      const key = `${slugify(brand)}|${[...words].sort().join(' ')}`
       const list = groups.get(key) ?? []
-      list.push({ ...p, brand, source })
+      list.push({ ...p, name, brand, source, sourceCategories: categories, words, importKey: makeImportKey(brand, name) })
       groups.set(key, list)
     }
   }
@@ -84,24 +157,48 @@ export function buildStaging(sourceResults, { categoryMap = {}, brandMap = {} } 
   const usedCodes = new Set()
   const usedSkus = new Set()
 
-  for (const [importKey, entries] of groups) {
+  // Earlier-source products per brand, for spotting near-duplicates.
+  const sourceRank = new Map(sourceResults.map((r, i) => [r.source, i]))
+  const keptByBrand = new Map()
+
+  for (const entries of groups.values()) {
     // The first listing (sources are in priority order) is the product;
     // every other listing of it is skipped and reported, never merged.
     const [primary, ...skipped] = entries
+    const importKey = primary.importKey
+
+    // Similar but not identical names are not skipped automatically (Matt
+    // vs Gloss Black are different helmets); the owner decides.
+    let possibleDuplicate = null
+    if (primary.brand) {
+      const earlier = (keptByBrand.get(primary.brand) ?? []).filter((k) => sourceRank.get(k.source) < sourceRank.get(primary.source))
+      for (const k of earlier) {
+        const overlap = wordOverlap(primary.words, k.words)
+        if (overlap >= 0.6 && (!possibleDuplicate || overlap > possibleDuplicate.overlap)) possibleDuplicate = { ...k, overlap }
+      }
+      keptByBrand.set(primary.brand, [...(keptByBrand.get(primary.brand) ?? []), primary])
+    }
     let productCode = productCodeFrom(importKey)
     for (let n = 2; usedCodes.has(productCode); n++) productCode = `${productCodeFrom(importKey).slice(0, 37)}-${n}`
     usedCodes.add(productCode)
 
-    const category = mapCategory(categoryMap, primary.sourceCategory)
+    // Bike-model categories become fitment tags; brand categories are not
+    // product types; the rest are mapped to District 38's tree.
+    const isTypeCategory = (c) => !fitment.has(c.trim().toLowerCase()) && !brandNames.has(c.trim().toLowerCase())
+    const typeCategories = primary.sourceCategories.filter(isTypeCategory)
+    const fitmentTags = primary.sourceCategories.map((c) => fitment.get(c.trim().toLowerCase())).filter(Boolean)
+
+    const description = primary.description ?? ''
+    const category = mapCategory(categoryMap, typeCategories, `${primary.name} ${primary.tags.join(' ')}`)
     if (!category.mapped) {
-      const name = primary.sourceCategory || '(none)'
+      const name = typeCategories.join(' | ') || '(none)'
       unmappedCategories.set(name, (unmappedCategories.get(name) ?? 0) + 1)
     }
 
-    const description = primary.description ?? ''
     const shortDescription = primary.shortDescription || shortFrom(description)
     const cert = detectCertification(`${primary.name} ${description} ${primary.tags.join(' ')}`)
-    const tags = [...new Set([...primary.tags, cert.tag].filter(Boolean).map((t) => t.toLowerCase()))]
+    const sourceTags = primary.tags.map((t) => t.toLowerCase()).filter((t) => keep.has(t))
+    const tags = [...new Set([...sourceTags, ...fitmentTags, cert.tag].filter(Boolean))]
 
     const sellingPrice = primary.sellingPrice ?? null
     const mrp = primary.mrp && primary.mrp > sellingPrice ? primary.mrp : null
@@ -179,8 +276,11 @@ export function buildStaging(sourceResults, { categoryMap = {}, brandMap = {} } 
     if (!category.mapped) problems.push('category not mapped')
     if (!sellingPrice) problems.push('no price')
     if (imageUrls.length === 0) problems.push('no images')
+    if (possibleDuplicate) problems.push(`possible duplicate of "${possibleDuplicate.name}" (${possibleDuplicate.source})`)
     if (primary.needsSizes && productVariants.length === 0) problems.push('sizes not found, add them')
-    if (/helmet/i.test(category.path) && !cert.certification) problems.push('certification not found')
+    if (/^helmets\b/i.test(category.path) && !cert.certification) {
+      problems.push(cert.eceVersionUnknown ? 'says ECE but not which version' : 'certification not found')
+    }
     if (problems.length) issues.push({ productCode, name: primary.name, problems: problems.join('; '), sourceUrls: products.at(-1).sourceUrls })
   }
 
@@ -217,6 +317,8 @@ export function buildStaging(sourceResults, { categoryMap = {}, brandMap = {} } 
     imagePlans,
     duplicates,
     issues,
-    unmappedCategories: [...unmappedCategories.entries()].map(([sourceCategory, products]) => ({ sourceCategory, products })),
+    unmappedCategories: [...unmappedCategories.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([sourceCategories, products]) => ({ sourceCategories, products })),
   }
 }

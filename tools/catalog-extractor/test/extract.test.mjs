@@ -11,7 +11,7 @@ import { promisify } from 'node:util'
 import { deflateSync } from 'node:zlib'
 import { parseCsv } from '../lib/csv.mjs'
 import { normalizeSize, makeImportKey, htmlToText } from '../lib/normalize.mjs'
-import { parseRobots } from '../lib/fetcher.mjs'
+import { parseRobots, robotsAllows } from '../lib/fetcher.mjs'
 
 const run = promisify(execFile)
 const here = dirname(fileURLToPath(import.meta.url))
@@ -56,7 +56,14 @@ test('unit: sizes, keys, html, robots', () => {
   assert.equal(makeImportKey('Axor', 'Axor Apex Pro'), 'axor__apex-pro')
   assert.equal(makeImportKey('AXOR', 'Apex Pro'), 'axor__apex-pro')
   assert.equal(htmlToText('<p>One &amp; two</p><ul><li>A</li></ul>'), 'One & two\n\n• A')
-  assert.deepEqual(parseRobots('User-agent: *\nDisallow: /admin\n\nUser-agent: other\nDisallow: /', 'district38catalogbot'), ['/admin'])
+  const rules = parseRobots('User-agent: *\nDisallow: /admin\nDisallow: /*?add-to-cart=\nDisallow: /private$\nAllow: /admin/ajax\n\nUser-agent: other\nDisallow: /\nSitemap: https://x.test/sitemap_index.xml', 'district38catalogbot')
+  assert.equal(robotsAllows(rules, '/product/helmet'), true, 'a wildcard rule must not block the whole site')
+  assert.equal(robotsAllows(rules, '/shop/?add-to-cart=12'), false)
+  assert.equal(robotsAllows(rules, '/admin/settings'), false)
+  assert.equal(robotsAllows(rules, '/admin/ajax'), true, 'the longer Allow wins')
+  assert.equal(robotsAllows(rules, '/private'), false)
+  assert.equal(robotsAllows(rules, '/private/page'), true, '$ anchors the end')
+  assert.deepEqual(rules.sitemaps, ['https://x.test/sitemap_index.xml'])
 })
 
 test('end to end: two shops into a staging folder, duplicates skipped', async () => {
@@ -170,4 +177,37 @@ test('end to end: two shops into a staging folder, duplicates skipped', async ()
     shopA.server.close()
     shopB.server.close()
   }
+})
+
+test('throttlerz-style product: brand from category, fitment tag, title case, helmet refine', async () => {
+  const { toRaw } = await import('../lib/adapters/woocommerce.mjs')
+  const { buildStaging } = await import('../lib/build.mjs')
+  const raw = toRaw({
+    id: 7, name: 'AXOR STREET FLIP UP HELMET', permalink: 'https://t.test/product/axor-street', sku: '',
+    description: '<p>DOT certified flip up helmet.</p>', short_description: '',
+    prices: { price: '459900', regular_price: '499900', currency_minor_unit: 2 },
+    images: [{ src: 'https://t.test/a.jpg' }], brands: [], tags: [{ name: 'Flash' }],
+    categories: [{ name: 'HELMETS' }, { name: 'AXOR' }, { name: 'KTM' }, { name: 'Flash sale' }],
+    attributes: [{ name: 'SIZE', terms: [{ name: 'M' }, { name: 'L' }, { name: 'XL' }] }],
+    variations: [{ id: 1, attributes: [{ name: 'SIZE', value: 'M' }] }, { id: 2, attributes: [{ name: 'SIZE', value: 'L' }] }],
+    is_in_stock: true,
+  })
+  const staging = buildStaging([{ source: 't', products: [raw], titleCase: true }], {
+    categoryMap: {
+      HELMETS: { path: 'Helmets', hsn: '65061010', refine: { 'flip|modular': 'Helmets > Modular' } },
+      'Flash sale': '',
+    },
+    knownBrands: ['Axor'],
+    fitmentCategories: ['KTM', 'Royal Enfield'],
+  })
+  const [p] = staging.products
+  assert.equal(p.name, 'Axor Street Flip Up Helmet')
+  assert.equal(p.brand, 'Axor', 'brand found among the categories')
+  assert.equal(p.categoryPath, 'Helmets > Modular', 'refined by keyword')
+  assert.equal(p.sellingPrice, 4599)
+  assert.equal(p.mrp, 4999)
+  assert.equal(p.certification, 'DOT')
+  assert.equal(p.tags, 'fits-ktm', 'SEO tags dropped, fitment kept')
+  assert.deepEqual(staging.variants.map((v) => v.size), ['M', 'L'], 'only the combinations the site sells')
+  assert.equal(staging.unmappedCategories.length, 0)
 })

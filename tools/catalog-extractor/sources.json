@@ -1,0 +1,45 @@
+{
+  "contact": "district38ops@gmail.com",
+  "delayMs": 1500,
+  "imageDelayMs": 500,
+  "categoryMap": "category-map.json",
+  "brandMap": "brand-map.json",
+  "sources": [
+    {
+      "name": "powersports",
+      "url": "https://powersports.in",
+      "adapter": "shopify"
+    },
+    {
+      "name": "throttlerz",
+      "url": "https://throttlerz.com",
+      "adapter": "woocommerce",
+      "titleCase": true
+    }
+  ],
+  "knownBrands": [
+    "Axor", "Korda", "KYT", "LS2", "NHK", "Airoh", "SMK", "Steelbird", "Studds", "Vega",
+    "Raida", "Scala", "Shield", "Solace", "Viaterra", "HJC", "Midland", "Reise", "Axxis",
+    "MT Helmets", "Rynox", "Motul", "Maisto"
+  ],
+  "fitmentCategories": {
+    "APRILLA": "Aprilia",
+    "BAJAJ": "Bajaj",
+    "BENELLI": "Benelli",
+    "BMW": "BMW",
+    "BULLET": "Royal Enfield Bullet",
+    "DUKE": "KTM Duke",
+    "HARLEY": "Harley Davidson",
+    "HERO": "Hero",
+    "HONDA": "Honda",
+    "JAWA": "Jawa",
+    "KAWASAKI": "Kawasaki",
+    "KTM": "KTM",
+    "OLA": "Ola",
+    "ROYAL ENFIELD": "Royal Enfield",
+    "SUZUKI": "Suzuki",
+    "TRIUMPH": "Triumph",
+    "TVS": "TVS",
+    "YAMAHA": "Yamaha"
+  }
+}

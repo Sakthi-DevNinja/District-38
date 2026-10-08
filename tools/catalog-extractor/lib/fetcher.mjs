@@ -44,10 +44,15 @@ export class PoliteFetcher {
     this.lastRequestAt = Date.now()
   }
 
+  /** Sitemap URLs listed in the site's robots.txt (after it was read). */
+  sitemapsFor(url) {
+    return this.robots.get(new URL(url).origin)?.sitemaps ?? []
+  }
+
   async allowedByRobots(url) {
-    const { origin, pathname } = new URL(url)
+    const { origin, pathname, search } = new URL(url)
     if (!this.robots.has(origin)) {
-      let rules = []
+      let rules = Object.assign([], { sitemaps: [] })
       try {
         await this.throttle()
         const res = await fetch(`${origin}/robots.txt`, { headers: { 'User-Agent': this.userAgent } })
@@ -57,7 +62,7 @@ export class PoliteFetcher {
       }
       this.robots.set(origin, rules)
     }
-    return !this.robots.get(origin).some((prefix) => prefix && pathname.startsWith(prefix))
+    return robotsAllows(this.robots.get(origin), pathname + search)
   }
 
   /** GET text with retries. Returns { status, contentType, body } or null when blocked/failed. */
@@ -139,9 +144,15 @@ export class PoliteFetcher {
   }
 }
 
-/** Disallow prefixes that apply to `*` or to our own agent name. */
+/**
+ * Allow/Disallow rules that apply to `*` or to our own agent name, as
+ * { allow, pattern, length }. Patterns follow Google's robots.txt rules:
+ * `*` matches any characters, a trailing `$` anchors the end, and the
+ * longest matching rule wins (Allow wins a tie).
+ */
 export function parseRobots(text, agent) {
   const rules = []
+  const sitemaps = []
   let applies = false
   let inAgentBlock = false
   for (const raw of text.split(/\r?\n/)) {
@@ -150,7 +161,9 @@ export function parseRobots(text, agent) {
     if (!match) continue
     const [, key, value] = match
     const k = key.toLowerCase()
-    if (k === 'user-agent') {
+    if (k === 'sitemap') {
+      sitemaps.push(value.trim())
+    } else if (k === 'user-agent') {
       // Consecutive User-agent lines form one group.
       if (!inAgentBlock) applies = false
       const ua = value.toLowerCase()
@@ -158,8 +171,30 @@ export function parseRobots(text, agent) {
       inAgentBlock = true
     } else {
       inAgentBlock = false
-      if (applies && k === 'disallow' && value) rules.push(value.replace(/\*.*$/, ''))
+      if (applies && (k === 'disallow' || k === 'allow') && value) {
+        rules.push({ allow: k === 'allow', pattern: value, length: value.length })
+      }
     }
   }
+  rules.sitemaps = sitemaps
   return rules
+}
+
+function patternToRegex(pattern) {
+  const anchored = pattern.endsWith('$')
+  const body = (anchored ? pattern.slice(0, -1) : pattern)
+    .split('*')
+    .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+    .join('.*')
+  return new RegExp(`^${body}${anchored ? '$' : ''}`)
+}
+
+/** True when the path (with query string) may be fetched under these rules. */
+export function robotsAllows(rules, pathAndQuery) {
+  let best = null
+  for (const rule of rules) {
+    if (!patternToRegex(rule.pattern).test(pathAndQuery)) continue
+    if (!best || rule.length > best.length || (rule.length === best.length && rule.allow)) best = rule
+  }
+  return !best || best.allow
 }

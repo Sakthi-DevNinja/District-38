@@ -81,7 +81,11 @@ export function normalizeColour(raw) {
   if (!text) return ''
   const fixed = COLOUR_FIXES[text.toLowerCase()]
   if (fixed) return fixed
-  return text.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+  // "GLOSS WHITE AND GREY" → "Gloss White and Grey"
+  return text
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/(?!^)\b(And|With|Or|Of)\b/g, (w) => w.toLowerCase())
 }
 
 /** Removes the brand from the start of a product name: "Axor Apex Pro" → "Apex Pro". */
@@ -110,4 +114,35 @@ export function skuFrom(productCode, size, colour) {
   return [productCode, slugify(colour).toUpperCase(), slugify(size).toUpperCase()]
     .filter(Boolean)
     .join('-')
+}
+
+// Short codes that stay in capitals when an ALL-CAPS name is title-cased.
+const KEEP_UPPER = new Set([
+  'ECE', 'DOT', 'ISI', 'LED', 'USB', 'GPS', 'ABS', 'CNC', 'UV', 'HD', 'DRL', 'EVA', 'TPU', 'PU',
+  'KTM', 'BMW', 'TVS', 'RE', 'NS', 'RS', 'RC', 'GT', 'XL', 'XXL', 'XS', 'SP', 'MT', 'KYT', 'SMK',
+  'NHK', 'HJC', 'LS2', 'SMX', 'ADV', 'ATV', 'MX', 'D3O', 'CE', 'II', 'III', 'IV', 'AZ', 'O2',
+  'GP', 'RR', 'ZX', 'CBR', 'FZ', 'NS', 'RTR', 'GPS', 'LH', 'RH', 'ML', 'MM', 'CC',
+])
+
+/**
+ * "AZ HELMET LOCK" → "AZ Helmet Lock". Only names that are mostly upper
+ * case are changed. Words with digits (LS2, 22.06), known short codes and
+ * the given brand spellings keep their form; small joining words go lower.
+ */
+export function titleCaseName(name, brandSpellings = []) {
+  const letters = name.replace(/[^A-Za-z]/g, '')
+  if (!letters || letters.replace(/[^A-Z]/g, '').length / letters.length < 0.8) return name
+  const brands = new Map(brandSpellings.map((b) => [b.toUpperCase(), b]))
+  const small = new Set(['AND', 'OR', 'FOR', 'WITH', 'OF', 'THE', 'TO', 'IN', 'ON', 'A', 'AN'])
+  return name
+    .split(/(\s+|[-/()+,])/)
+    .map((word, i) => {
+      if (!/[A-Za-z]/.test(word)) return word
+      const upper = word.toUpperCase()
+      if (brands.has(upper)) return brands.get(upper)
+      if (KEEP_UPPER.has(upper) || /\d/.test(word)) return upper
+      if (i > 0 && small.has(upper)) return word.toLowerCase()
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    })
+    .join('')
 }

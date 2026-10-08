@@ -37,6 +37,18 @@ Copy the examples next to each other and edit:
   (`"Riding Jackets": "Riding Gear > Jackets"`), optionally with an HSN code.
   Unmapped categories are listed in `reports/unmapped-categories.csv`.
 - `brand-map.json`: fixes brand spellings (`"AXOR": "Axor"`).
+- In `sources.json` also:
+  - `titleCase: true` on a source whose names are ALL CAPS ("AZ HELMET LOCK" →
+    "AZ Helmet Lock"; codes like LS2, KTM, ECE, GP stay in capitals).
+  - `knownBrands`: brands to recognise when a product's brand field is empty,
+    from its categories or the start of its name. Nothing else is guessed;
+    products with no recognisable brand keep a blank brand.
+  - `fitmentCategories`: bike-model categories ("KTM", "ROYAL ENFIELD") turned into
+    tags like `fits-ktm` instead of being treated as brands or product types.
+    Use an object to fix a name: `{ "APRILLA": "Aprilia" }`.
+- In `category-map.json`, `""` ignores a category ("Flash sale"), and
+  `refine` picks a subcategory by keyword, e.g. helmets into Full Face,
+  Modular, Open Face, Off-Road & Adventure or Kids.
 
 ## 3. Extract
 
@@ -51,7 +63,8 @@ node tools/catalog-extractor/extract.mjs run --config tools/catalog-extractor/so
 |---|---|
 | `staging/brands.csv … images.csv` | The six import sheets, exact template columns, every row `status=NEW` |
 | `staging/images/<productCode>/01.jpg…` | Every gallery image, in site order; `01` is the main image |
-| `reports/needs-review.csv` | Products missing a brand, category, price, images, sizes or certification |
+| `reports/needs-review.csv` | Products missing a brand, category, price, images, sizes or certification, and possible duplicates |
+| `reports/needs-photo.csv` | Products with no photo on any source: they import as unpublished drafts until staff add one |
 | `reports/skipped-duplicates.csv` | Listings skipped because the product was already taken from an earlier site, with both prices |
 | `reports/unmapped-categories.csv` | Source categories to add to `category-map.json` |
 | `snapshots/<site>-<time>.json` | What each site showed on that run (evidence) |
@@ -68,9 +81,11 @@ Re-running is safe: cached pages and downloaded images are reused.
 
 ## What it fills in, and what the owner checks
 
-- **importKey** `brand__model` (e.g. `axor__apex-pro`): the same helmet on
-  two sites becomes one product, taken whole from the first site; the
-  other listing is skipped and reported.
+- **Duplicates:** the same brand with the same significant words (any order,
+  ignoring filler like "helmet", "motorcycle", "new") is one product, taken
+  whole from the first site; the others are skipped and reported. Similar
+  but not identical names (Matt vs Gloss Black) are kept and flagged as
+  "possible duplicate of …" for the owner.
 - **productCode** from the key (`AXOR-APEX-PRO`); **SKU** from the site, or
   `PRODUCTCODE-COLOUR-SIZE`.
 - **Sizes** normalised (`Medium` → `M`, `2XL` → `XXL`); numeric sizes kept.
