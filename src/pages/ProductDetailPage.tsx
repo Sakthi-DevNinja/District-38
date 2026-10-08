@@ -159,7 +159,15 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
       ? Math.round(((displayOriginalPrice - displayPrice) / displayOriginalPrice) * 100)
       : null;
 
+  // The chosen size decides; before one is chosen, any size in stock counts.
+  const isAvailable = selectedVariant
+    ? selectedVariant.inStock
+    : hasVariants
+      ? product.variants.some((v) => v.inStock)
+      : product.inStock;
+
   const addSelectionToCart = async () => {
+    if (!isAvailable) return false;
     if (hasVariants && !selectedVariant) {
       setShowVariantError(true);
       return false;
@@ -319,10 +327,15 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
               {/* Add to Cart */}
               <button
                 onClick={handleAddToCart}
-                className="flex-1 py-3 px-4 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs sm:text-sm tracking-wide shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2"
+                disabled={!isAvailable}
+                className="flex-1 py-3 px-4 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold text-xs sm:text-sm tracking-wide shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2 disabled:bg-neutral-300 disabled:text-neutral-600 disabled:shadow-none disabled:cursor-not-allowed"
               >
                 <ShoppingBag className="w-4 h-4" />
-                <span>ADD TO CART • ₹{(displayPrice * quantity).toLocaleString('en-IN')}</span>
+                <span>
+                  {isAvailable
+                    ? `ADD TO CART • ₹${(displayPrice * quantity).toLocaleString('en-IN')}`
+                    : 'OUT OF STOCK'}
+                </span>
               </button>
 
               {/* Wishlist Icon Button */}
@@ -342,7 +355,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
             {/* Instant Buy Now Button */}
             <button
               onClick={handleBuyNow}
-              className="w-full py-3 px-4 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-semibold text-xs sm:text-sm tracking-wide transition-colors flex items-center justify-center space-x-2"
+              disabled={!isAvailable}
+              className="disabled:hidden w-full py-3 px-4 rounded-xl bg-neutral-950 hover:bg-neutral-800 text-white font-semibold text-xs sm:text-sm tracking-wide transition-colors flex items-center justify-center space-x-2"
             >
               <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
               <span>BUY IT NOW (EXPRESS CHECKOUT)</span>
@@ -351,13 +365,21 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
 
           {/* Stock Badge & Pincode Checker */}
           <div className="space-y-4 pt-2">
-            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between">
-              <span className="flex items-center space-x-1.5 font-medium">
-                <Check className="w-4 h-4 text-emerald-600" />
-                <span>Ready for dispatch</span>
-              </span>
-              <span className="text-[11px] font-bold text-emerald-800">Same-Day Courier</span>
-            </div>
+            {isAvailable ? (
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between">
+                <span className="flex items-center space-x-1.5 font-medium">
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  <span>Ready for dispatch</span>
+                </span>
+                <span className="text-[11px] font-bold text-emerald-800">Same-Day Courier</span>
+              </div>
+            ) : (
+              <div className="p-3 bg-neutral-100 rounded-xl border border-neutral-200 text-xs text-neutral-700 font-medium">
+                {selectedVariant
+                  ? `Size ${selectedVariant.name} is out of stock. Try another size or save it to your wishlist.`
+                  : 'Currently out of stock. Save it to your wishlist and check back soon.'}
+              </div>
+            )}
 
             <PincodeChecker />
           </div>
