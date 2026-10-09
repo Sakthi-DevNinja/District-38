@@ -556,6 +556,8 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // ─── Checkout ───────────────────────────────────────────────────────────
   const submitCheckout = async (address: DeliveryAddress): Promise<CheckoutResult> => {
     const result = await checkoutApi.checkout({
+      deliveryContactName: address.contactName,
+      deliveryPhone: address.phone,
       deliveryAddressLine1: address.line1,
       deliveryAddressLine2: address.line2,
       deliveryCity: address.city,
@@ -584,6 +586,8 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lines: detail.lines,
         deliveryAddress: detail.deliveryAddress
           ? {
+              contactName: detail.deliveryAddress.contactName ?? '',
+              phone: detail.deliveryAddress.phone ?? '',
               line1: detail.deliveryAddress.line1,
               line2: detail.deliveryAddress.line2 ?? undefined,
               city: detail.deliveryAddress.city,

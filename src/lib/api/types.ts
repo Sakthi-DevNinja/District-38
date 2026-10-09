@@ -191,6 +191,8 @@ export interface CartResponse {
 // ─── Checkout & Razorpay (checkout.dto.ts, razorpay-payment.dto.ts) ─────
 
 export interface CheckoutAddressInput {
+  deliveryContactName: string
+  deliveryPhone: string
   deliveryAddressLine1: string
   deliveryAddressLine2?: string
   deliveryCity: string
@@ -261,6 +263,9 @@ export interface CustomerOrderLine {
 }
 
 export interface CustomerOrderDeliveryAddress {
+  /** Null on orders placed before checkout asked for them. */
+  contactName: string | null
+  phone: string | null
   line1: string
   line2: string | null
   city: string

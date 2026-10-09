@@ -29,6 +29,13 @@ const INDIAN_STATES = [
   'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
 ];
 
+// Same rule as the server: 10 digits starting 6–9, optionally written with
+// +91 / 91 / 0 in front; spaces, dashes and brackets are ignored.
+function isIndianMobile(value: string): boolean {
+  const digits = value.replace(/[\s\-()]/g, '').replace(/^(\+91|91|0)(?=\d{10}$)/, '');
+  return /^[6-9]\d{9}$/.test(digits);
+}
+
 export const CheckoutPage: React.FC = () => {
   const {
     cart,
@@ -44,6 +51,8 @@ export const CheckoutPage: React.FC = () => {
   useNoIndex('Checkout');
 
   const [address, setAddress] = useState({
+    contactName: currentUser?.displayName ?? '',
+    phone: '',
     line1: '',
     line2: '',
     city: '',
@@ -119,7 +128,7 @@ export const CheckoutPage: React.FC = () => {
       currency: payment.currency,
       name: 'District 38',
       description: displayOrderNumber ? `Order ${displayOrderNumber}` : 'Order payment',
-      prefill: { name: currentUser?.displayName, email: currentUser?.email },
+      prefill: { name: address.contactName || currentUser?.displayName, email: currentUser?.email, contact: address.phone },
       theme: { color: '#EA580C' },
       handler: async (response) => {
         try {
@@ -173,6 +182,14 @@ export const CheckoutPage: React.FC = () => {
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!address.contactName.trim()) {
+      showToast('Please enter the name for the delivery.', 'error');
+      return;
+    }
+    if (!isIndianMobile(address.phone)) {
+      showToast('Please enter a valid 10-digit mobile number (starting with 6, 7, 8 or 9).', 'error');
+      return;
+    }
     if (!address.line1.trim() || !address.city.trim() || !address.stateProvince.trim() || !address.postalCode.trim()) {
       showToast('Please enter your full delivery address.', 'error');
       return;
@@ -291,6 +308,35 @@ export const CheckoutPage: React.FC = () => {
               </h2>
 
               <div className="space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-semibold text-neutral-700 mb-1">Name for Delivery *</label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={150}
+                      autoComplete="name"
+                      value={address.contactName}
+                      onChange={e => handleInputChange('contactName', e.target.value)}
+                      placeholder="Who receives the parcel"
+                      className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-orange-500 font-normal"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-neutral-700 mb-1">Mobile Number *</label>
+                    <input
+                      type="tel"
+                      required
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={address.phone}
+                      onChange={e => handleInputChange('phone', e.target.value)}
+                      placeholder="10-digit mobile, for the courier"
+                      className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:border-orange-500 font-normal"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block font-semibold text-neutral-700 mb-1">House / Flat / Street Address *</label>
                   <input

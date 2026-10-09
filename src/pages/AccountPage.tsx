@@ -231,6 +231,11 @@ export const AccountPage: React.FC<AccountPageProps> = ({ initialTab = 'dashboar
                               <div className="flex items-start gap-2 text-xs text-neutral-600">
                                 <MapPin className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
                                 <span>
+                                  {detail.deliveryAddress.contactName && (
+                                    <span className="block font-semibold text-neutral-800">
+                                      {detail.deliveryAddress.contactName}{detail.deliveryAddress.phone ? ` · ${detail.deliveryAddress.phone}` : ''}
+                                    </span>
+                                  )}
                                   {detail.deliveryAddress.line1}
                                   {detail.deliveryAddress.line2 ? `, ${detail.deliveryAddress.line2}` : ''}, {detail.deliveryAddress.city}, {detail.deliveryAddress.stateProvince} — {detail.deliveryAddress.postalCode}
                                 </span>

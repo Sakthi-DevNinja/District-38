@@ -131,6 +131,8 @@ export interface CartItem {
 // (Contacts' address CRUD is admin-only, under /api/v1/contacts), so this
 // is entered fresh at checkout each time, never a saved/reusable address.
 export interface DeliveryAddress {
+  contactName: string;
+  phone: string;
   line1: string;
   line2?: string;
   city: string;

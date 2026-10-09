@@ -115,6 +115,11 @@ export const OrderSuccessPage: React.FC<OrderSuccessPageProps> = ({ orderId }) =
           <div className="flex items-start gap-2 text-xs text-neutral-600">
             <MapPin className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
             <span>
+              {order.deliveryAddress.contactName && (
+                <span className="block font-semibold text-neutral-800">
+                  {order.deliveryAddress.contactName}{order.deliveryAddress.phone ? ` · ${order.deliveryAddress.phone}` : ''}
+                </span>
+              )}
               {order.deliveryAddress.line1}
               {order.deliveryAddress.line2 ? `, ${order.deliveryAddress.line2}` : ''}, {order.deliveryAddress.city}, {order.deliveryAddress.stateProvince} — {order.deliveryAddress.postalCode}
             </span>
