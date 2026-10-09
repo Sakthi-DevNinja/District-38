@@ -10,10 +10,10 @@ import {
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { useNoIndex } from '../hooks/use-noindex';
-import { verifyRazorpayPayment } from '../lib/api/payments';
 import { retryPayment } from '../lib/api/checkout';
 import { PaymentInitResult } from '../lib/api/types';
 import { loadRazorpay } from '../lib/razorpay-loader';
+import { payWithRazorpay } from '../lib/razorpay-checkout';
 import { BrandLogo } from '../components/layout/BrandLogo';
 import { setReturnTo } from '../lib/return-to';
 import { dispatchText } from '../lib/availability';
@@ -108,61 +108,32 @@ export const CheckoutPage: React.FC = () => {
     setAddress(prev => ({ ...prev, [field]: val }));
   };
 
-  // Opens the real Razorpay Checkout widget using exactly what the VEYONN
-  // backend returned (publishable key id + provider order id + amount) —
-  // never a client-invented amount. On success, the payment is verified
-  // server-side (the browser is never trusted to declare success) before
-  // the order confirmation page is shown.
+  // Opens Razorpay (see lib/razorpay-checkout.ts); the order page is shown
+  // only after the server has verified the payment.
   const openRazorpay = async (payment: PaymentInitResult, displayOrderNumber: string | null) => {
-    const loaded = await loadRazorpay();
-    if (!loaded) {
-      setPaymentFailed(true);
-      showToast('Payment window failed to load. Check your connection and retry.', 'error');
-      return;
+    const result = await payWithRazorpay(payment, {
+      orderNumber: displayOrderNumber,
+      prefill: { name: address.contactName || currentUser?.displayName, email: currentUser?.email, contact: address.phone }
+    });
+
+    switch (result.outcome) {
+      case 'paid':
+        showToast('Payment confirmed! Your order is placed.', 'success');
+        navigate('/order-success', { orderId: result.salesOrderId });
+        return;
+      case 'unavailable':
+        setPaymentFailed(true);
+        showToast('Payment window failed to load. Check your connection and retry.', 'error');
+        return;
+      case 'unverified':
+        setPaymentFailed(true);
+        showToast(result.message, 'error');
+        return;
+      case 'dismissed':
+        setPaymentFailed(true);
+        showToast('Payment was not completed. You can retry from here.', 'warning');
+        return;
     }
-
-    const rzp = new window.Razorpay({
-      key: payment.publicFields.keyId,
-      order_id: payment.providerOrderId,
-      amount: payment.amount,
-      currency: payment.currency,
-      name: 'District 38',
-      description: displayOrderNumber ? `Order ${displayOrderNumber}` : 'Order payment',
-      prefill: { name: address.contactName || currentUser?.displayName, email: currentUser?.email, contact: address.phone },
-      theme: { color: '#EA580C' },
-      handler: async (response) => {
-        try {
-          const result = await verifyRazorpayPayment({
-            paymentId: payment.paymentId,
-            razorpayOrderId: response.razorpay_order_id,
-            razorpayPaymentId: response.razorpay_payment_id,
-            razorpaySignature: response.razorpay_signature
-          });
-          showToast('Payment confirmed! Your order is placed.', 'success');
-          navigate('/order-success', { orderId: result.salesOrderId });
-        } catch (err) {
-          setPaymentFailed(true);
-          showToast(
-            err instanceof Error ? err.message : 'Payment could not be verified. Please retry.',
-            'error'
-          );
-        }
-      },
-      modal: {
-        ondismiss: () => {
-          setPaymentFailed(true);
-          showToast('Payment was not completed. You can retry from here.', 'warning');
-        }
-      }
-    });
-
-    // Razorpay shows its own failure message and lets the customer retry
-    // inside the same window; ondismiss handles the toast if they give up.
-    rzp.on('payment.failed', () => {
-      setPaymentFailed(true);
-    });
-
-    rzp.open();
   };
 
   const handleRetryPayment = async () => {

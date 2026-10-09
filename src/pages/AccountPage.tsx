@@ -10,6 +10,7 @@ import {
 import { useShop } from '../context/ShopContext';
 import { useNoIndex } from '../hooks/use-noindex';
 import { Order } from '../types';
+import { PayNowButton, canPayNow } from '../components/commerce/PayNowButton';
 
 interface AccountPageProps {
   initialTab?: 'dashboard' | 'orders' | 'addresses' | 'profile';
@@ -256,6 +257,18 @@ export const AccountPage: React.FC<AccountPageProps> = ({ initialTab = 'dashboar
                                 </div>
                               ))}
                             </div>
+
+                            {canPayNow(detail) && (
+                              <div className="p-4 rounded-xl bg-orange-50 border border-orange-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <p className="text-xs text-orange-900">
+                                  We have not received the payment for this order yet. Pay now to confirm it.
+                                </p>
+                                <PayNowButton
+                                  order={detail}
+                                  onPaid={(salesOrderId) => navigate('/order-success', { orderId: salesOrderId })}
+                                />
+                              </div>
+                            )}
 
                             <div className="pt-2 flex justify-between items-center text-xs">
                               <span className="text-neutral-500">

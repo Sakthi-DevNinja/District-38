@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  AlertCircle,
   CheckCircle,
   MapPin,
   Calendar
@@ -7,6 +8,7 @@ import {
 import { useShop } from '../context/ShopContext';
 import { useNoIndex } from '../hooks/use-noindex';
 import { Order } from '../types';
+import { PayNowButton, canPayNow } from '../components/commerce/PayNowButton';
 
 interface OrderSuccessPageProps {
   orderId?: string;
@@ -67,9 +69,30 @@ export const OrderSuccessPage: React.FC<OrderSuccessPageProps> = ({ orderId }) =
     );
   }
 
+  const awaitingPayment = canPayNow(order);
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-8">
-      {/* 1. Success Splash Header */}
+      {awaitingPayment ? (
+        <div className="text-center space-y-3">
+          <div className="w-16 h-16 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center mx-auto">
+            <AlertCircle className="w-10 h-10" />
+          </div>
+          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-neutral-100 text-neutral-800 text-xs font-bold font-mono">
+            <span>ORDER {order.orderNumber}</span>
+          </div>
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-neutral-950 tracking-tight">
+            Payment Pending
+          </h1>
+          <p className="text-xs sm:text-sm text-neutral-600 max-w-lg mx-auto leading-relaxed">
+            Your order is saved, but we have not received the payment yet. Nothing has been charged. Pay now to confirm it.
+          </p>
+          <PayNowButton
+            order={order}
+            onPaid={() => { fetchOrder(order.id).then(setOrder); }}
+          />
+        </div>
+      ) : (
       <div className="text-center space-y-3">
         <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner animate-in zoom-in-50 duration-300">
           <CheckCircle className="w-10 h-10" />
@@ -81,9 +104,10 @@ export const OrderSuccessPage: React.FC<OrderSuccessPageProps> = ({ orderId }) =
           Gear Order Confirmed!
         </h1>
         <p className="text-xs sm:text-sm text-neutral-600 max-w-lg mx-auto leading-relaxed">
-          Thank you for choosing District 38. Your order is now a confirmed Sales Order in our system.
+          Thank you for choosing District 38. Your payment is received and our team is preparing your order.
         </p>
       </div>
+      )}
 
       {/* 2. Order Status Card */}
       <div className="p-6 bg-white rounded-2xl border border-neutral-200 shadow-sm space-y-4">
