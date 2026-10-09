@@ -17,6 +17,7 @@ import * as checkoutApi from '../lib/api/checkout';
 import * as ordersApi from '../lib/api/orders';
 import { CartResponse, CheckoutResult, WishlistItem as ApiWishlistItem } from '../lib/api/types';
 import { getCustomerToken, setCustomerToken, clearCustomerToken, ApiError } from '../lib/api/client';
+import { setReturnTo } from '../lib/return-to';
 
 interface Toast {
   id: string;
@@ -30,15 +31,17 @@ interface ShopContextType {
   routeParams: Record<string, string>;
   navigate: (route: string, params?: Record<string, string>) => void;
 
-  // Cart — VEYONN is authoritative; every mutation is a real API call.
-  // Requires authentication (the backend's cart has no guest-cart
-  // capability — every /cart route demands a customer JWT).
+  // Cart — for a signed-in customer VEYONN is authoritative and every
+  // mutation is a real API call. A visitor who isn't signed in gets a guest
+  // cart kept in this browser (the backend cart needs a customer JWT); it is
+  // added to the real cart on sign-in, where the server re-checks price and
+  // stock. Checkout still requires an account.
   cart: CartItem[];
   cartCount: number;
   cartSubtotal: number;
   cartCurrency: string;
   cartLoading: boolean;
-  addToCart: (productId: string, quantity?: number, variantId?: string) => Promise<void>;
+  addToCart: (productId: string, quantity?: number, variantId?: string, display?: GuestLineDisplay) => Promise<void>;
   updateCartQuantity: (productId: string, quantity: number, variantId?: string | null) => Promise<void>;
   removeFromCart: (productId: string, variantId?: string | null) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -145,6 +148,43 @@ function errorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+// What a guest-cart line needs to be shown before the visitor signs in.
+export interface GuestLineDisplay {
+  product: Product;
+  variantName: string | null;
+  unitPrice: number;
+}
+
+interface GuestLine extends GuestLineDisplay {
+  productId: string;
+  variantId: string | null;
+  quantity: number;
+}
+
+const GUEST_CART_KEY = 'd38_guest_cart';
+
+function loadGuestCart(): GuestLine[] {
+  try {
+    const raw = localStorage.getItem(GUEST_CART_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveGuestCart(lines: GuestLine[]): void {
+  try {
+    if (lines.length) localStorage.setItem(GUEST_CART_KEY, JSON.stringify(lines));
+    else localStorage.removeItem(GUEST_CART_KEY);
+  } catch {
+    // storage unavailable (private mode): the guest cart lasts for this page only
+  }
+}
+
+const sameLine = (line: { productId: string; variantId: string | null }, productId: string, variantId?: string | null) =>
+  line.productId === productId && (line.variantId ?? null) === (variantId ?? null);
+
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
 
 export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -201,6 +241,29 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [cartResponse, setCartResponse] = useState<CartResponse>(EMPTY_CART);
   const [cartLoading, setCartLoading] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [guestCart, setGuestCartState] = useState<GuestLine[]>(() => loadGuestCart());
+  const setGuestCart = (lines: GuestLine[]) => {
+    setGuestCartState(lines);
+    saveGuestCart(lines);
+  };
+
+  // Moves the guest cart into the customer's real cart right after sign-in.
+  // Each line goes through the server, which re-checks price and stock; a
+  // line it refuses is reported instead of silently dropped.
+  const mergeGuestCart = async () => {
+    const lines = loadGuestCart();
+    if (lines.length === 0) return;
+    let failed = 0;
+    for (const line of lines) {
+      try {
+        await cartApi.addCartItem(line.productId, line.quantity, line.variantId ?? undefined);
+      } catch {
+        failed++;
+      }
+    }
+    setGuestCart([]);
+    if (failed > 0) showToast(`${failed} item(s) from your cart could not be added — please check your cart.`, 'warning');
+  };
 
   // ─── Wishlist (real VEYONN wishlist) ────────────────────────────────────
   const [wishlist, setWishlist] = useState<ApiWishlistItem[]>([]);
@@ -280,6 +343,7 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const profile = await authApi.getProfile();
       setCurrentUser(profile);
       showToast(`Welcome back, ${profile.displayName}!`, 'success');
+      await mergeGuestCart();
       refreshCart();
       refreshWishlist();
       refreshOrders();
@@ -298,6 +362,7 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const profile = await authApi.getProfile();
       setCurrentUser(profile);
       showToast(`Welcome to District 38, ${profile.displayName}!`, 'success');
+      await mergeGuestCart();
       refreshCart();
       refreshWishlist();
       refreshOrders();
@@ -329,6 +394,7 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const requireAuth = (action: string): boolean => {
     if (!currentUser) {
       showToast(`Please sign in to ${action}.`, 'info');
+      setReturnTo(currentRoute);
       navigate('/login');
       return false;
     }
@@ -336,8 +402,24 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // ─── Cart Mutations ─────────────────────────────────────────────────────
-  const addToCart = async (productId: string, quantity = 1, variantId?: string) => {
-    if (!requireAuth('add items to your cart')) return;
+  const addToCart = async (productId: string, quantity = 1, variantId?: string, display?: GuestLineDisplay) => {
+    if (!currentUser) {
+      // Without what to show for the line (e.g. moving from the wishlist,
+      // which needs an account anyway) fall back to asking for sign-in.
+      if (!display) {
+        requireAuth('add items to your cart');
+        return;
+      }
+      const existing = guestCart.find((l) => sameLine(l, productId, variantId));
+      setGuestCart(
+        existing
+          ? guestCart.map((l) => (sameLine(l, productId, variantId) ? { ...l, quantity: l.quantity + quantity } : l))
+          : [...guestCart, { productId, variantId: variantId ?? null, quantity, ...display }]
+      );
+      showToast('Added to cart', 'success');
+      setIsCartOpen(true);
+      return;
+    }
     setCartLoading(true);
     try {
       const response = await cartApi.addCartItem(productId, quantity, variantId);
@@ -356,6 +438,10 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await removeFromCart(productId, variantId);
       return;
     }
+    if (!currentUser) {
+      setGuestCart(guestCart.map((l) => (sameLine(l, productId, variantId) ? { ...l, quantity } : l)));
+      return;
+    }
     setCartLoading(true);
     try {
       const response = await cartApi.updateCartItemQuantity(productId, quantity, variantId);
@@ -368,6 +454,11 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const removeFromCart = async (productId: string, variantId?: string | null) => {
+    if (!currentUser) {
+      setGuestCart(guestCart.filter((l) => !sameLine(l, productId, variantId)));
+      showToast('Item removed from cart', 'info');
+      return;
+    }
     setCartLoading(true);
     try {
       const response = await cartApi.removeCartItem(productId, variantId);
@@ -381,6 +472,10 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const clearCart = async () => {
+    if (!currentUser) {
+      setGuestCart([]);
+      return;
+    }
     setCartLoading(true);
     try {
       const response = await cartApi.clearCart();
@@ -392,9 +487,19 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const cart = mapCart(cartResponse);
+  const cart: CartItem[] = currentUser
+    ? mapCart(cartResponse)
+    : guestCart.map((l) => ({
+        productId: l.productId,
+        variantId: l.variantId,
+        variantName: l.variantName,
+        product: l.product,
+        quantity: l.quantity,
+        unitPrice: l.unitPrice,
+        totalPrice: l.unitPrice * l.quantity
+      }));
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
-  const cartSubtotal = cartResponse.subtotal;
+  const cartSubtotal = currentUser ? cartResponse.subtotal : cart.reduce((acc, item) => acc + item.totalPrice, 0);
   const cartCurrency = cartResponse.currency;
 
   // ─── Wishlist Mutations ─────────────────────────────────────────────────

@@ -85,9 +85,6 @@ export const AccountPage: React.FC<AccountPageProps> = ({ initialTab = 'dashboar
           <div>
             <div className="flex items-center space-x-2">
               <h1 className="text-xl sm:text-2xl font-extrabold text-white">{currentUser.displayName}</h1>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                Verified
-              </span>
             </div>
             <div className="text-xs text-neutral-400 mt-0.5">{currentUser.email}</div>
           </div>

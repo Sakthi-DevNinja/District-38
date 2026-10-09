@@ -39,7 +39,11 @@ const QuickAddContent: React.FC<{ product: Product }> = ({ product }) => {
       setShowVariantError(true);
       return;
     }
-    await addToCart(product.id, 1, selectedVariant?.id);
+    await addToCart(product.id, 1, selectedVariant?.id, {
+      product,
+      variantName: selectedVariant?.name ?? null,
+      unitPrice: selectedVariant?.price ?? product.price,
+    });
     closeQuickAdd();
   };
 

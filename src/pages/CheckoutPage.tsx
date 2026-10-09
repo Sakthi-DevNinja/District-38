@@ -15,10 +15,18 @@ import { retryPayment } from '../lib/api/checkout';
 import { PaymentInitResult } from '../lib/api/types';
 import { loadRazorpay } from '../lib/razorpay-loader';
 import { BrandLogo } from '../components/layout/BrandLogo';
+import { setReturnTo } from '../lib/return-to';
+import { dispatchText } from '../lib/availability';
 
+// All 28 states and 8 union territories, Tamil Nadu first (most orders).
 const INDIAN_STATES = [
-  'Tamil Nadu', 'Karnataka', 'Kerala', 'Andhra Pradesh', 'Telangana',
-  'Maharashtra', 'Delhi', 'Gujarat', 'West Bengal', 'Other'
+  'Tamil Nadu',
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat',
+  'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh',
+  'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan',
+  'Sikkim', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
 ];
 
 export const CheckoutPage: React.FC = () => {
@@ -57,9 +65,9 @@ export const CheckoutPage: React.FC = () => {
     return (
       <div className="max-w-md mx-auto py-16 px-4 text-center space-y-4">
         <h2 className="text-xl font-bold text-neutral-900">Please sign in to check out</h2>
-        <p className="text-xs text-neutral-500">Your cart and order history are tied to your District 38 account.</p>
+        <p className="text-xs text-neutral-500">Sign in or create an account to place your order — your cart comes with you.</p>
         <button
-          onClick={() => navigate('/login')}
+          onClick={() => { setReturnTo('/checkout'); navigate('/login'); }}
           className="px-5 py-2.5 rounded-xl bg-orange-600 text-white font-bold text-xs"
         >
           Sign In
@@ -383,6 +391,9 @@ export const CheckoutPage: React.FC = () => {
                         {item.variantName && (
                           <div className="text-xs text-neutral-500 mt-0.5">Size: {item.variantName}</div>
                         )}
+                        {item.product.availability === 'ON_ORDER' && (
+                          <div className="text-[11px] text-amber-700 mt-0.5">Available on order · {dispatchText(item.product.dispatchDays)}</div>
+                        )}
                       </div>
                     </div>
                     <span className="font-semibold text-neutral-900">
@@ -392,8 +403,17 @@ export const CheckoutPage: React.FC = () => {
                 ))}
               </div>
 
-              {/* Calculation — server-computed subtotal only. */}
+              {/* Calculation — server-computed subtotal only. The checkout
+                  charges no shipping, so the line says so plainly. */}
               <div className="space-y-2 text-xs text-neutral-600 pt-3 border-t border-neutral-100">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>₹{cartSubtotal.toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipping</span>
+                  <span className="font-semibold text-emerald-700">Free</span>
+                </div>
                 <div className="flex justify-between text-base font-bold text-neutral-950 pt-2 border-t border-neutral-200">
                   <span>Total Due</span>
                   <span className="text-orange-600 font-bold text-lg">₹{cartSubtotal.toLocaleString('en-IN')}</span>

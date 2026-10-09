@@ -182,7 +182,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
       setShowVariantError(true);
       return false;
     }
-    await addToCart(product.id, quantity, selectedVariant?.id);
+    await addToCart(product.id, quantity, selectedVariant?.id, {
+      product,
+      variantName: selectedVariant?.name ?? null,
+      unitPrice: selectedVariant?.price ?? product.price,
+    });
     return true;
   };
 

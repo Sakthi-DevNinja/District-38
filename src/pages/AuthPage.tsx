@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   User,
   Mail,
@@ -10,6 +10,7 @@ import {
 import { useShop } from '../context/ShopContext';
 import { useNoIndex } from '../hooks/use-noindex';
 import { BrandLogo } from '../components/layout/BrandLogo';
+import { takeReturnTo } from '../lib/return-to';
 
 interface AuthPageProps {
   initialMode?: 'login' | 'register';
@@ -30,10 +31,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
 
-  if (isAuthenticated) {
-    navigate('/account');
-    return null;
-  }
+  // Signed in (already, or just now via the forms below): this is the one place
+  // that leaves the page, after render rather than during it — navigating while rendering updates the provider mid-render.
+  useEffect(() => {
+    if (isAuthenticated) navigate(takeReturnTo() ?? '/account');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  if (isAuthenticated) return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,9 +50,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
     setIsSubmitting(true);
     const result = await login(email.trim(), password);
     setIsSubmitting(false);
-    if (result.success) {
-      navigate('/account');
-    } else {
+    if (!result.success) {
       setFormError(result.error ?? 'Invalid email or password.');
     }
   };
@@ -71,9 +74,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ initialMode = 'login' }) => 
       lastName: lastName.trim()
     });
     setIsSubmitting(false);
-    if (result.success) {
-      navigate('/account');
-    } else {
+    if (!result.success) {
       setFormError(result.error ?? 'Could not create your account.');
     }
   };
