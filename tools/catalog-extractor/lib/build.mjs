@@ -339,9 +339,13 @@ export function buildStaging(
 
   const sizeValues = [...new Set(variants.map((v) => v.size).filter(Boolean))].sort((a, b) => sizeSortKey(a).localeCompare(sizeSortKey(b)))
   const colourValues = [...new Set(variants.map((v) => v.colour).filter(Boolean))].sort()
+  // Certification is an existing attribute in VEYONN; listing the values used here
+  // adds any it doesn't have yet (e.g. ECE 22.05) instead of rejecting those products.
+  const certificationValues = [...new Set(products.map((p) => p.certification).filter(Boolean))].sort()
   const attributes = [
     ...sizeValues.map((value, i) => ({ attribute: 'Size', classification: i === 0 ? 'VARIANT' : '', dataType: i === 0 ? 'LIST' : '', value, status: 'NEW' })),
     ...colourValues.map((value, i) => ({ attribute: 'Colour', classification: i === 0 ? 'VARIANT' : '', dataType: i === 0 ? 'LIST' : '', value, status: 'NEW' })),
+    ...certificationValues.map((value) => ({ attribute: 'Certification', classification: '', dataType: '', value, status: 'NEW' })),
   ]
 
   // Categories: Size is required where every product in it has sizes.
