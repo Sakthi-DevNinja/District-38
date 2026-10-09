@@ -15,10 +15,11 @@ import { Pagination } from '../components/commerce/Pagination';
 import { tagTitle } from '../lib/collections';
 import { FilterDrawer, NO_PRICE_LIMIT } from '../components/commerce/FilterDrawer';
 import { usePageMeta } from '../hooks/use-page-meta';
+import { NotFoundNotice } from '../components/layout/NotFoundNotice';
 import { CatalogSort } from '../lib/api/types';
 import { FilterState } from '../types';
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 32;
 
 const SORT_PARAM: Record<FilterState['sortBy'], CatalogSort> = {
   newest: 'newest',
@@ -89,13 +90,26 @@ export const ShopPage: React.FC<ShopPageProps> = ({ initialCategory }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  usePageMeta({
+  usePageMeta(unknownCategory ? null : {
     title: activeCategory ? `${activeCategory.name} — Shop` : 'Shop All Motorcycle Gear',
     description: activeCategory
       ? (activeCategory.description ?? `Shop ${activeCategory.name} at District 38 — authorised, genuine motorcycle riding gear.`)
       : 'Browse the full District 38 catalog — ECE 22.06 helmets, riding jackets, gloves, and touring accessories.',
     path: currentRoute
-  }, [activeCategory?.id, currentRoute]);
+  }, [activeCategory?.id, currentRoute, unknownCategory]);
+
+  // App.tsx routes every unmatched single-segment path here as a possible
+  // category, so an unknown slug is this site's real 404.
+  if (unknownCategory) {
+    return (
+      <NotFoundNotice
+        title="Page not found"
+        message="The page you are looking for has moved or does not exist."
+        actionLabel="Browse all gear"
+        actionPath="/shop"
+      />
+    );
+  }
 
   const brandName = (id: string) => (brandsQuery.data ?? []).find(b => b.id === id)?.name ?? 'Selected brand';
 

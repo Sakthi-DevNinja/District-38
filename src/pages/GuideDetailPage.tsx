@@ -4,6 +4,7 @@ import { GUIDES } from '../data/guides';
 import { useShop } from '../context/ShopContext';
 import { usePageMeta } from '../hooks/use-page-meta';
 import { setStructuredData } from '../lib/seo';
+import { NotFoundNotice } from '../components/layout/NotFoundNotice';
 import { useEffect } from 'react';
 
 interface GuideDetailPageProps {
@@ -12,16 +13,17 @@ interface GuideDetailPageProps {
 
 export const GuideDetailPage: React.FC<GuideDetailPageProps> = ({ slug }) => {
   const { navigate, showToast } = useShop();
-  const guide = GUIDES.find(g => g.slug === slug) || GUIDES[0];
+  const guide = GUIDES.find(g => g.slug === slug);
 
-  usePageMeta({
+  usePageMeta(guide ? {
     title: guide.title,
     description: guide.excerpt,
     path: `/guides/${guide.slug}`,
     image: guide.coverImage
-  }, [guide.slug]);
+  } : null, [slug]);
 
   useEffect(() => {
+    if (!guide) return;
     setStructuredData('ld-article', {
       '@context': 'https://schema.org',
       '@type': 'Article',
@@ -33,7 +35,18 @@ export const GuideDetailPage: React.FC<GuideDetailPageProps> = ({ slug }) => {
       publisher: { '@type': 'Organization', name: 'District 38' }
     });
     return () => setStructuredData('ld-article', null);
-  }, [guide.slug]);
+  }, [slug]);
+
+  if (!guide) {
+    return (
+      <NotFoundNotice
+        title="Guide not found"
+        message="This guide may have moved or the link is incorrect."
+        actionLabel="Browse all guides"
+        actionPath="/guides"
+      />
+    );
+  }
 
   const handleShare = () => {
     if (navigator.share) {

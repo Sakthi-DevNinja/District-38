@@ -15,6 +15,10 @@ import { useBrands } from '../../hooks/use-brands';
 import { adaptListItem, slugifyCategoryName as slugify } from '../../lib/product-adapter';
 import { RIDING_GUIDES } from '../../data/guides';
 
+// Each term must return results from the live catalog — check them
+// whenever brands or categories are unpublished.
+const POPULAR_SEARCHES = ['Axor Apex', 'Riding Gloves', 'Tail Bag', 'Visor', 'Tank Bag', 'Boots'];
+
 export const SearchOverlay: React.FC = () => {
   const { 
     isSearchOpen,
@@ -246,7 +250,7 @@ export const SearchOverlay: React.FC = () => {
                 {matchedProducts.length === 0 && matchedBrands.length === 0 && matchedCategories.length === 0 && (
                   <div className="text-center py-8 text-neutral-500">
                     <p className="text-sm font-medium">No direct matches found for "{inputVal}".</p>
-                    <p className="text-xs mt-1 text-neutral-400">Try searching for generic terms like "Helmet", "Rynox", "Jackets", or "Boots".</p>
+                    <p className="text-xs mt-1 text-neutral-400">Try searching for generic terms like "Helmet", "Axor", "Gloves", or "Tail Bag".</p>
                     <button
                       onClick={() => handleSearchSubmit(inputVal)}
                       className="mt-4 px-4 py-2 rounded-xl bg-neutral-900 text-white text-xs font-bold"
@@ -294,14 +298,7 @@ export const SearchOverlay: React.FC = () => {
                     <span>Popular Rider Searches</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {[
-                      'ECE 22.06 Certified Helmets',
-                      'Rynox Stealth Air Pro',
-                      'ViaTerra Claw 72L',
-                      'Motul Chain Lube Combo',
-                      'BOBO Mobile Holder Qi',
-                      'Sena 50S Intercom'
-                    ].map((item, idx) => (
+                    {POPULAR_SEARCHES.map((item, idx) => (
                       <button
                         key={idx}
                         onClick={() => handleSearchSubmit(item)}

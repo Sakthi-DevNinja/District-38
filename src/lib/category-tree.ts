@@ -24,10 +24,18 @@ export function buildCategoryTree(categories: PublicCategory[]): CategoryNode[] 
     }),
   )
 
+  // Hide categories with nothing published (and so their subcategories),
+  // so menus never lead to an empty page. Older backends send no count:
+  // show everything then.
+  const visible = categories.filter((c) => c.productCount !== 0)
+  const isVisible = new Set(visible.map((c) => c.id))
+
   const roots: CategoryNode[] = []
-  categories.forEach((c) => {
+  visible.forEach((c) => {
     const node = nodes.get(c.id)!
     const parent = c.parentCategoryId ? nodes.get(c.parentCategoryId) : undefined
+    // A child of a hidden (empty) parent is empty too, so it is skipped.
+    if (c.parentCategoryId && parent && !isVisible.has(c.parentCategoryId)) return
     // A parent that isn't public makes this a top-level entry.
     if (parent) parent.children.push(node)
     else roots.push(node)
@@ -37,7 +45,8 @@ export function buildCategoryTree(categories: PublicCategory[]): CategoryNode[] 
 
 // Top-level categories shown first, in this order: the header shows the
 // first four; the mobile menu, footer and home tiles follow the same order.
-export const FEATURED_CATEGORY_SLUGS = ['helmets', 'riding-gear', 'protection-parts', 'bike-accessories']
+// Empty categories are hidden, so the later entries fill in for them.
+export const FEATURED_CATEGORY_SLUGS = ['helmets', 'riding-gear', 'protection-parts', 'bike-accessories', 'helmet-accessories', 'luggage']
 
 function sortFeaturedFirst(roots: CategoryNode[]): CategoryNode[] {
   const rank = (c: CategoryNode) => {

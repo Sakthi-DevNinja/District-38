@@ -6,6 +6,7 @@ import { useProducts } from '../hooks/use-products';
 import { adaptListItem, slugifyCategoryName as slugify } from '../lib/product-adapter';
 import { ProductGrid } from '../components/commerce/ProductGrid';
 import { usePageMeta } from '../hooks/use-page-meta';
+import { NotFoundNotice } from '../components/layout/NotFoundNotice';
 
 interface BrandsPageProps {
   brandSlug?: string;
@@ -24,7 +25,9 @@ export const BrandsPage: React.FC<BrandsPageProps> = ({ brandSlug }) => {
 
   const brandProductsQuery = useProducts({ brandId: selectedBrand?.id, limit: 100 });
 
-  usePageMeta({
+  const brandMissing = !!brandSlug && !brandsQuery.isLoading && !selectedBrand;
+
+  usePageMeta(brandMissing ? null : {
     title: brandSlug
       ? (selectedBrand ? `${selectedBrand.name} — Authorised Dealer` : 'Brand')
       : 'Shop by Brand',
@@ -45,15 +48,12 @@ export const BrandsPage: React.FC<BrandsPageProps> = ({ brandSlug }) => {
 
     if (!selectedBrand) {
       return (
-        <div className="max-w-7xl mx-auto px-4 py-24 text-center space-y-4">
-          <h1 className="text-xl font-bold text-neutral-900">Brand not found</h1>
-          <button
-            onClick={() => navigate('/brands')}
-            className="inline-flex items-center px-5 py-2.5 rounded-xl bg-neutral-950 text-white font-bold text-xs"
-          >
-            Browse all brands
-          </button>
-        </div>
+        <NotFoundNotice
+          title="Brand not found"
+          message="We don't stock this brand, or the link is incorrect."
+          actionLabel="Browse all brands"
+          actionPath="/brands"
+        />
       );
     }
 

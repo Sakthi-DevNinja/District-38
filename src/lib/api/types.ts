@@ -80,6 +80,8 @@ export interface PublicCategory {
   name: string
   description: string | null
   parentCategoryId: string | null
+  /** Published products in this category and its subcategories. Absent on older backends. */
+  productCount?: number
 }
 
 export interface CatalogFacets {

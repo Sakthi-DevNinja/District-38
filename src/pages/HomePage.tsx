@@ -66,6 +66,9 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="pb-16">
+      {/* The hero is an image carousel, so the page heading is for screen readers and search engines. */}
+      <h1 className="sr-only">District 38 — Motorcycle Helmets, Riding Gear &amp; Accessories, Trichy</h1>
+
       {/* 1. Hero — the full-image riding gallery carousel itself */}
       <RidingGalleryCarousel />
 

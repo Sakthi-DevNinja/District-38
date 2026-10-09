@@ -24,6 +24,7 @@ import { VariantPicker } from '../components/commerce/VariantPicker';
 import { ProductDescription } from '../components/commerce/ProductDescription';
 import { dispatchText, isOrderable } from '../lib/availability';
 import { usePageMeta } from '../hooks/use-page-meta';
+import { NotFoundNotice } from '../components/layout/NotFoundNotice';
 import { setStructuredData } from '../lib/seo';
 import { resolveImageUrl } from '../lib/api/client';
 
@@ -123,18 +124,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
 
   if (productDetailQuery.error || !productDto) {
     return (
-      <div className="w-full max-w-3xl mx-auto px-4 py-24 text-center space-y-4">
-        <h1 className="text-xl font-bold text-neutral-900">Product not found</h1>
-        <p className="text-sm text-neutral-500">
-          This product may have been unpublished or the link is incorrect.
-        </p>
-        <button
-          onClick={() => navigate('/shop')}
-          className="inline-flex items-center px-5 py-2.5 rounded-xl bg-neutral-950 text-white font-bold text-xs"
-        >
-          Browse the catalog
-        </button>
-      </div>
+      <NotFoundNotice
+        title="Product not found"
+        message="This product may have been unpublished or the link is incorrect."
+        actionLabel="Browse the catalog"
+        actionPath="/shop"
+      />
     );
   }
 

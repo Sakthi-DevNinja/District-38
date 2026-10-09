@@ -209,8 +209,8 @@ const MainRouter: React.FC = () => {
     // real/future categories (a category link would 404 the moment an
     // admin renamed or added one), treat any single-segment path that
     // didn't match a named route above as a category slug and let
-    // ShopPage itself resolve it — an unknown slug just shows ShopPage's
-    // own empty-results state, never the hard 404 page.
+    // ShopPage itself resolve it — ShopPage shows the not-found state for
+    // a slug that matches no category.
     const singleSegment = currentRoute.startsWith('/') && !currentRoute.slice(1).includes('/') && currentRoute.length > 1;
     if (singleSegment) {
       return <ShopPage initialCategory={currentRoute.replace('/', '')} />;
