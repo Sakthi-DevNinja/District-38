@@ -2,7 +2,7 @@
 // District 38 catalog extractor. See README.md.
 //   node extract.mjs recon https://example-shop.in
 //   node extract.mjs run --config sources.json [--limit 20] [--refresh] [--skip-images]
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { PoliteFetcher } from './lib/fetcher.mjs'
 import { buildStaging } from './lib/build.mjs'
@@ -117,6 +117,26 @@ async function run(options) {
     keepTags: config.keepTags,
   })
 
+  // Rewritten descriptions (descriptions/*.json: [{ productCode, shortDescription, description }])
+  // are applied on every build, so they survive re-extraction.
+  let descriptionsApplied = 0
+  try {
+    const descDir = join(out, 'descriptions')
+    const byCode = new Map()
+    for (const file of (await readdir(descDir)).filter((f) => f.endsWith('.json')).sort()) {
+      for (const d of JSON.parse(await readFile(join(descDir, file), 'utf8'))) byCode.set(d.productCode, d)
+    }
+    for (const p of staging.products) {
+      const d = byCode.get(p.productCode)
+      if (!d) continue
+      p.shortDescription = d.shortDescription
+      p.description = d.description
+      descriptionsApplied++
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+  }
+
   let images = { rows: [], downloaded: 0, reused: 0, recovered: 0, failures: [] }
   if (!options['skip-images']) {
     console.log(`\nDownloading images for ${staging.imagePlans.length} products…`)
@@ -141,6 +161,7 @@ async function run(options) {
   await writeCsv(join(reportsDir, 'needs-photo.csv'), ['productCode', 'name', 'sourceUrls'], needsPhoto)
   await writeCsv(join(reportsDir, 'failed-images.csv'), ['productCode', 'url'], images.failures)
   await writeCsv(join(reportsDir, 'skipped-duplicates.csv'), ['productCode', 'name', 'keptSource', 'keptUrl', 'keptPrice', 'skippedSource', 'skippedUrl', 'skippedPrice'], staging.duplicates)
+  await writeCsv(join(reportsDir, 'refiled-by-name.csv'), ['productCode', 'name', 'from', 'to'], staging.refiled)
   await writeCsv(join(reportsDir, 'unmapped-categories.csv'), ['sourceCategories', 'products'], staging.unmappedCategories)
 
   const summary = [
@@ -149,6 +170,8 @@ async function run(options) {
     `Brands: ${staging.brands.length}, categories: ${staging.categories.length}`,
     `Images: ${images.rows.length} (${images.downloaded} downloaded, ${images.reused} already on disk, ${images.recovered} recovered from resized copies, ${images.failures.length} unavailable)${options['skip-images'] ? ' — skipped' : ''}`,
     `Products without any photo: ${needsPhoto.length} (reports/needs-photo.csv)`,
+    `Descriptions rewritten: ${descriptionsApplied} of ${staging.products.length}`,
+    `Re-filed by name rules: ${staging.refiled.length} (reports/refiled-by-name.csv)`,
     `Needs review: ${staging.issues.length} products (reports/needs-review.csv)`,
     `Duplicates skipped: ${staging.duplicates.length} (reports/skipped-duplicates.csv)`,
     `Unmapped source categories: ${staging.unmappedCategories.length} (reports/unmapped-categories.csv)`,

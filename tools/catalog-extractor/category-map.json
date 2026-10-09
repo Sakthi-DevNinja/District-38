@@ -1,6 +1,145 @@
 {
   "_comment": "Source category name (either site, any case) -> District 38 category path. \"\" = ignore (marketing labels). refine: regex on name+tags -> more specific path. Brand and bike-fitment categories are handled in sources.json, not here.",
-
+  "_nameRules": [
+    {
+      "pattern": "rally tower|navigation tower|nav tower",
+      "path": "Electronics > GPS & Navigation",
+      "always": true
+    },
+    {
+      "pattern": "foot ?rest|foot ?peg",
+      "path": "Bike Accessories > Foot Rests"
+    },
+    {
+      "pattern": "back ?rest",
+      "path": "Bike Accessories > Back Rests"
+    },
+    {
+      "pattern": "top ?rack|top ?plate",
+      "path": "Bike Accessories > Top Racks & Plates",
+      "always": true
+    },
+    {
+      "pattern": "saddle ?stay",
+      "path": "Bike Accessories > Saddle Stays"
+    },
+    {
+      "pattern": "grab ?rail",
+      "path": "Bike Accessories > Grab Rails"
+    },
+    {
+      "pattern": "side ?stand|stand ?base|stand ?extender",
+      "path": "Bike Accessories > Side Stand Bases"
+    },
+    {
+      "pattern": "tail ?tidy",
+      "path": "Bike Accessories > Tail Tidies"
+    },
+    {
+      "pattern": "number ?plate|\\bno\\.? ?plate",
+      "path": "Bike Accessories > Number Plate Holders"
+    },
+    {
+      "pattern": "tank ?bag",
+      "path": "Luggage > Tank Bags"
+    },
+    {
+      "pattern": "tail ?bag|saddle ?bag",
+      "path": "Luggage > Saddle & Tail Bags"
+    },
+    {
+      "pattern": "top ?box|pannier",
+      "path": "Luggage > Top Boxes & Panniers"
+    },
+    {
+      "pattern": "sump ?guard|engine ?guard|bash ?plate|skid ?plate",
+      "path": "Protection Parts > Engine & Sump Guards"
+    },
+    {
+      "pattern": "frame ?slider|fork ?slider",
+      "path": "Protection Parts > Frame & Fork Sliders"
+    },
+    {
+      "pattern": "radiator",
+      "path": "Protection Parts > Radiator Guards"
+    },
+    {
+      "pattern": "headlight ?(grill|guard)",
+      "path": "Protection Parts > Headlight Grills"
+    },
+    {
+      "pattern": "tyre ?hugger|mud ?guard|mudguard",
+      "path": "Protection Parts > Mudguards & Tyre Huggers"
+    },
+    {
+      "pattern": "screen ?(guard|protector)|display ?protector",
+      "path": "Protection Parts > Screen Protectors"
+    },
+    {
+      "pattern": "crash ?guard",
+      "path": "Protection Parts > Crash Guards"
+    },
+    {
+      "pattern": "brake ?(pad|shoe|hose)|disc ?(plate|rotor)",
+      "path": "Performance Parts > Brakes"
+    },
+    {
+      "pattern": "exhaust|silencer|muffler|bend ?pipe|db ?killer",
+      "path": "Performance Parts > Exhaust"
+    },
+    {
+      "pattern": "air ?filter",
+      "path": "Performance Parts > Air Filters"
+    },
+    {
+      "pattern": "sprocket|chain ?kit",
+      "path": "Performance Parts > Chain & Sprockets"
+    },
+    {
+      "pattern": "spark ?plug",
+      "path": "Performance Parts > Spark Plugs"
+    },
+    {
+      "pattern": "mirror",
+      "path": "Handlebar & Controls > Mirrors"
+    },
+    {
+      "pattern": "(mobile|phone) ?(holder|mount)",
+      "path": "Handlebar & Controls > Mobile Holders"
+    },
+    {
+      "pattern": "hand ?guard|barkbuster",
+      "path": "Handlebar & Controls > Handguards"
+    },
+    {
+      "pattern": "handle ?bar|riser|clip-?on",
+      "path": "Handlebar & Controls > Handlebars & Risers"
+    },
+    {
+      "pattern": "lever",
+      "path": "Handlebar & Controls > Levers"
+    },
+    {
+      "pattern": "\\bgrips?\\b",
+      "path": "Handlebar & Controls > Grips"
+    },
+    {
+      "pattern": "fog ?light|aux(iliary)? ?light",
+      "path": "Lighting > Fog Lights"
+    },
+    {
+      "pattern": "indicator|winker",
+      "path": "Lighting > Indicators"
+    },
+    {
+      "pattern": "tail ?(light|lamp)",
+      "path": "Lighting > Tail Lights"
+    },
+    {
+      "pattern": "chain ?(lube|clean)|polish|cleaner|shampoo",
+      "path": "Maintenance & Care > Cleaning & Polish"
+    }
+  ],
   "Motorcycle Helmets": {
     "path": "Helmets",
     "hsn": "65061010",
@@ -23,24 +162,48 @@
       "full[ -]face": "Helmets > Full Face"
     }
   },
-  "Full Face": { "path": "Helmets > Full Face", "hsn": "65061010" },
-  "Half Face": { "path": "Helmets > Open Face", "hsn": "65061010" },
-  "Open Face": { "path": "Helmets > Open Face", "hsn": "65061010" },
-  "Modular Helmets": { "path": "Helmets > Modular", "hsn": "65061010" },
-  "Offroad & Adventure": { "path": "Helmets > Off-Road & Adventure", "hsn": "65061010" },
-  "Kids Helmets": { "path": "Helmets > Kids", "hsn": "65061010" },
-
+  "Full Face": {
+    "path": "Helmets > Full Face",
+    "hsn": "65061010"
+  },
+  "Half Face": {
+    "path": "Helmets > Open Face",
+    "hsn": "65061010"
+  },
+  "Open Face": {
+    "path": "Helmets > Open Face",
+    "hsn": "65061010"
+  },
+  "Modular Helmets": {
+    "path": "Helmets > Modular",
+    "hsn": "65061010"
+  },
+  "Offroad & Adventure": {
+    "path": "Helmets > Off-Road & Adventure",
+    "hsn": "65061010"
+  },
+  "Kids Helmets": {
+    "path": "Helmets > Kids",
+    "hsn": "65061010"
+  },
   "Motorcycle Helmet Parts & Accessories": {
     "path": "Helmet Accessories",
-    "refine": { "visor|shield|pinlock": "Helmet Accessories > Visors" }
+    "refine": {
+      "visor|shield|pinlock": "Helmet Accessories > Visors"
+    }
   },
   "Helmet Accessories": {
     "path": "Helmet Accessories",
-    "refine": { "visor|shield|pinlock": "Helmet Accessories > Visors" }
+    "refine": {
+      "visor|shield|pinlock": "Helmet Accessories > Visors"
+    }
   },
   "HELMET ACCESSORIES": {
     "path": "Helmet Accessories",
-    "refine": { "visor|shield|pinlock": "Helmet Accessories > Visors", "lock": "Helmet Accessories > Helmet Locks" }
+    "refine": {
+      "visor|shield|pinlock": "Helmet Accessories > Visors",
+      "lock": "Helmet Accessories > Helmet Locks"
+    }
   },
   "Visors": "Helmet Accessories > Visors",
   "Visor Mechanisms": "Helmet Accessories > Visors",
@@ -51,7 +214,6 @@
   "Nose Guards": "Helmet Accessories > Spare Parts",
   "Spoilers": "Helmet Accessories > Spare Parts",
   "Screw & others": "Helmet Accessories > Spare Parts",
-
   "RIDING GEARS": "Riding Gear",
   "RIDING ESSENTIALS": "Riding Gear",
   "OTHER RIDING GEARS": "Riding Gear",
@@ -69,7 +231,6 @@
   "Balaclava": "Riding Gear > Balaclavas & Sleeves",
   "Hand Sleeves": "Riding Gear > Balaclavas & Sleeves",
   "Goggles & Glass Wears": "Riding Gear > Goggles & Eyewear",
-
   "Motorcycle Luggage": "Luggage",
   "LUGGAGE WEBSITE": "Luggage",
   "Essential Bags": "Luggage",
@@ -83,14 +244,12 @@
   "Hydrtaion bags & Bladders": "Luggage > Hydration",
   "Jerry Can & Mounts": "Luggage > Jerry Cans",
   "ROPES": "Luggage > Ropes & Bungees",
-
   "Intercoms": "Electronics > Intercoms",
   "Helmet Bluetooth Device": "Electronics > Intercoms",
   "BLUETOOTH AND COMMUNICATION": "Electronics > Intercoms",
   "Camera & supporting mounts": "Electronics > Cameras & Mounts",
   "navigation systems": "Electronics > GPS & Navigation",
   "GPS TRACKER & GPS MOUNT website": "Electronics > GPS & Navigation",
-
   "LIGHT & LIGHT ACCESSORIES": "Lighting",
   "FOG LIGHTS WEBSITE": "Lighting > Fog Lights",
   "FOG & FORK LIGHT CLAMP website": "Lighting > Light Mounts & Clamps",
@@ -99,7 +258,6 @@
   "FANCY LIGHTS WEBSITE": "Lighting > Hazard & Decorative Lights",
   "DOOM LIGHTS WEBSITE": "Lighting > Headlights",
   "TAIL LIGHT": "Lighting > Tail Lights",
-
   "PROTECTION PARTS WEBSITE": "Protection Parts",
   "UNDERBELLY & FIBER KIT": "Protection Parts",
   "CRASHGUARDS WEBSITE": "Protection Parts > Crash Guards",
@@ -113,7 +271,6 @@
   "MUDGUARD WEBSITE": "Protection Parts > Mudguards & Tyre Huggers",
   "mudgurd & extenders": "Protection Parts > Mudguards & Tyre Huggers",
   "TYRE HUGGER WEBSITE": "Protection Parts > Mudguards & Tyre Huggers",
-
   "HANDLEBAR ACCESSORIES WEBSITE": "Handlebar & Controls",
   "GRIPS WEBSITE": "Handlebar & Controls > Grips",
   "HANDGUARDS WEBSITE": "Handlebar & Controls > Handguards",
@@ -126,7 +283,6 @@
   "MOBILE HOLDERS WEBISTE": "Handlebar & Controls > Mobile Holders",
   "QUICK THROTTLE WEBSITE": "Handlebar & Controls > Throttles",
   "SWITCHES WEBSITE": "Handlebar & Controls > Switches",
-
   "Accessories": "Bike Accessories",
   "Motorcycle Accessories": "Bike Accessories",
   "Essentials": "Bike Accessories",
@@ -148,7 +304,6 @@
   "Bike covers": "Bike Accessories > Bike Covers",
   "HORNS": "Bike Accessories > Horns",
   "Horn & Relay": "Bike Accessories > Horns",
-
   "PERFORMANCE PARTS WEBSITE": "Performance Parts",
   "EXHAUST & EXHAUST ACCESSORIES WEBSITE": "Performance Parts > Exhaust",
   "BEND PIPES WEBSITE": "Performance Parts > Exhaust",
@@ -158,15 +313,12 @@
   "Chain cover & sprockets": "Performance Parts > Chain & Sprockets",
   "SPARK PLUGS WEBSITE": "Performance Parts > Spark Plugs",
   "Shock absorbers": "Performance Parts > Suspension",
-
   "MAINTENANCE": "Maintenance & Care",
   "Lubes": "Maintenance & Care > Lubes & Oils",
   "Spray & polish": "Maintenance & Care > Cleaning & Polish",
   "Microfibre cloth": "Maintenance & Care > Cleaning & Polish",
-
   "TOYS WEBSITE": "Merchandise > Toys & Models",
   "Apparels": "Merchandise > Apparel",
-
   "Flash sale": "",
   "NEW ARRIVALS": "",
   "Uncategorized": ""

@@ -49,6 +49,43 @@ function mapCategory(categoryMap, sourceCategories, text) {
   return { path, hsn: best.hsn ?? '', mapped: true }
 }
 
+// Categories whose products are never re-filed by name rules.
+const PROTECTED_TOP_CATEGORIES = ['Helmets', 'Riding Gear']
+
+/**
+ * category-map.json "_nameRules": [{ pattern, path, always? }], checked in
+ * order against the product name; the first matching rule decides. A rule
+ * re-files the product when the source only gave a broad category (or none),
+ * or always when "always" is set (for source categories known to be wrong).
+ */
+function applyNameRules(category, name, rules) {
+  for (const rule of rules) {
+    if (!new RegExp(rule.pattern, 'i').test(name)) continue
+    const top = category.path.split(' > ')[0]
+    const broad = !category.mapped || !category.path.includes('>')
+    if (rule.always || (broad && !PROTECTED_TOP_CATEGORIES.includes(top))) {
+      return { ...category, path: rule.path, mapped: true, renamed: true }
+    }
+    return category
+  }
+  return category
+}
+
+/** Throttlerz prices like 700.01 are a rounding artefact: 700.01 → 700. */
+function cleanPrice(value) {
+  if (!value) return value
+  return Math.round((value % 1) * 100) === 1 ? Math.floor(value) : value
+}
+
+/** Footwear sizes: 9 → "UK 9", 42 → "EU 42", so mixed lists stay clear. */
+function shoeSize(size, categoryPath) {
+  if (!/boot|shoe/i.test(categoryPath) || !/^\d+(\.5)?$/.test(size)) return size
+  const n = Number(size)
+  if (n <= 14) return `UK ${size}`
+  if (n >= 34) return `EU ${size}`
+  return size
+}
+
 // Words that don't tell two products apart ("Axor Apex Helmet" and
 // "AXOR APEX MOTORCYCLE HELMET" are the same product).
 const FILLER_WORDS = new Set(['helmet', 'helmets', 'motorcycle', 'bike', 'riding', 'the', 'with', 'for', 'and', 'new'])
@@ -152,6 +189,7 @@ export function buildStaging(
   const variants = []
   const imagePlans = []
   const duplicates = []
+  const refiled = []
   const issues = []
   const unmappedCategories = new Map()
   const usedCodes = new Set()
@@ -189,19 +227,27 @@ export function buildStaging(
     const fitmentTags = primary.sourceCategories.map((c) => fitment.get(c.trim().toLowerCase())).filter(Boolean)
 
     const description = primary.description ?? ''
-    const category = mapCategory(categoryMap, typeCategories, `${primary.name} ${primary.tags.join(' ')}`)
+    const category = applyNameRules(
+      mapCategory(categoryMap, typeCategories, `${primary.name} ${primary.tags.join(' ')}`),
+      primary.name,
+      categoryMap._nameRules ?? [],
+    )
+    if (category.renamed) refiled.push({ productCode, name: primary.name, from: typeCategories.join(' | '), to: category.path })
     if (!category.mapped) {
       const name = typeCategories.join(' | ') || '(none)'
       unmappedCategories.set(name, (unmappedCategories.get(name) ?? 0) + 1)
     }
 
     const shortDescription = primary.shortDescription || shortFrom(description)
-    const cert = detectCertification(`${primary.name} ${description} ${primary.tags.join(' ')}`)
+    // The product's own text decides; SEO tags only count when it says nothing
+    // (a "22.06" tag must not override a description that says ECE 22.05).
+    const fromText = detectCertification(`${primary.name} ${description}`)
+    const cert = fromText.certification ? fromText : detectCertification(primary.tags.join(' '))
     const sourceTags = primary.tags.map((t) => t.toLowerCase()).filter((t) => keep.has(t))
     const tags = [...new Set([...sourceTags, ...fitmentTags, cert.tag].filter(Boolean))]
 
-    const sellingPrice = primary.sellingPrice ?? null
-    const mrp = primary.mrp && primary.mrp > sellingPrice ? primary.mrp : null
+    const sellingPrice = cleanPrice(primary.sellingPrice) ?? null
+    const mrp = primary.mrp && cleanPrice(primary.mrp) > sellingPrice ? cleanPrice(primary.mrp) : null
 
     for (const dup of skipped) {
       duplicates.push({
@@ -238,18 +284,20 @@ export function buildStaging(
     // Sizes/colours of the kept listing; the same option twice is kept once.
     const byOption = new Map()
     for (const v of primary.variants) {
-      const size = normalizeSize(v.size)
+      const skuSize = normalizeSize(v.size)
+      const size = shoeSize(skuSize, category.path)
       const colour = normalizeColour(v.colour)
       if (!size && !colour) continue
       const optKey = `${size}|${colour}`
-      if (!byOption.has(optKey)) byOption.set(optKey, { ...v, size, colour })
+      // skuSize keeps generated SKUs stable when only the size label changes.
+      if (!byOption.has(optKey)) byOption.set(optKey, { ...v, size, skuSize, colour })
     }
     const productVariants = [...byOption.values()].sort((a, b) =>
       (a.colour || '').localeCompare(b.colour || '') || sizeSortKey(a.size).localeCompare(sizeSortKey(b.size)),
     )
     for (const v of productVariants) {
-      let sku = v.sku && !usedSkus.has(v.sku) ? v.sku : skuFrom(productCode, v.size, v.colour)
-      for (let n = 2; usedSkus.has(sku); n++) sku = `${skuFrom(productCode, v.size, v.colour)}-${n}`
+      let sku = v.sku && !usedSkus.has(v.sku) ? v.sku : skuFrom(productCode, v.skuSize, v.colour)
+      for (let n = 2; usedSkus.has(sku); n++) sku = `${skuFrom(productCode, v.skuSize, v.colour)}-${n}`
       usedSkus.add(sku)
       variants.push({
         sku,
@@ -259,8 +307,8 @@ export function buildStaging(
         size: v.size,
         colour: v.colour,
         // Blank = same as the product; only differences are written.
-        sellingPrice: v.sellingPrice && v.sellingPrice !== sellingPrice ? v.sellingPrice : '',
-        mrp: v.mrp && v.mrp !== mrp && v.mrp > (v.sellingPrice ?? 0) ? v.mrp : '',
+        sellingPrice: v.sellingPrice && cleanPrice(v.sellingPrice) !== sellingPrice ? cleanPrice(v.sellingPrice) : '',
+        mrp: v.mrp && cleanPrice(v.mrp) !== mrp && v.mrp > (v.sellingPrice ?? 0) ? cleanPrice(v.mrp) : '',
         published: '',
         status: 'NEW',
       })
@@ -316,6 +364,7 @@ export function buildStaging(
     variants,
     imagePlans,
     duplicates,
+    refiled,
     issues,
     unmappedCategories: [...unmappedCategories.entries()]
       .sort((a, b) => b[1] - a[1])

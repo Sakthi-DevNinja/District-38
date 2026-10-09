@@ -70,6 +70,8 @@ export function normalizeSize(raw) {
 export function sizeSortKey(size) {
   const i = SIZE_ORDER.indexOf(size)
   if (i >= 0) return `0-${String(i).padStart(2, '0')}`
+  const scaled = /^(UK|EU|US)\s*(\d+(?:\.\d+)?)$/.exec(size)
+  if (scaled) return `1-${scaled[1]}-${scaled[2].padStart(6, '0')}`
   const n = parseFloat(size)
   return Number.isFinite(n) ? `1-${String(n).padStart(8, '0')}` : `2-${size}`
 }
