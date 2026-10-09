@@ -3,7 +3,6 @@ import {
   Heart, 
   ShoppingBag, 
   Zap, 
-  ShieldCheck,
   Check,
   Star, 
   ChevronRight, 
@@ -24,10 +23,13 @@ import { ReviewSection } from '../components/commerce/ReviewSection';
 import { PincodeChecker } from '../components/commerce/PincodeChecker';
 import { ProductGrid } from '../components/commerce/ProductGrid';
 import { VariantPicker } from '../components/commerce/VariantPicker';
+import { ProductDescription } from '../components/commerce/ProductDescription';
 import { dispatchText, isOrderable } from '../lib/availability';
 import { usePageMeta } from '../hooks/use-page-meta';
 import { setStructuredData } from '../lib/seo';
 import { resolveImageUrl } from '../lib/api/client';
+
+const HELMET_CATEGORIES = new Set(['Helmets', 'Full Face', 'Modular', 'Open Face', 'Off-Road & Adventure', 'Kids']);
 
 interface ProductDetailPageProps {
   slug: string;
@@ -111,7 +113,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
   const [selectedVariantId, setSelectedVariantId] = useState<string>('');
   const [showVariantError, setShowVariantError] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<'specs' | 'features' | 'care'>('specs');
+  const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'care'>('description');
 
   if (productDetailQuery.isLoading) {
     return (
@@ -139,6 +141,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
   }
 
   const product = adaptDetail(productDto);
+  // Helmet care advice only makes sense on helmets (VEYONN categories are flat: Full Face, Modular…).
+  const isHelmet = HELMET_CATEGORIES.has(productDto.category?.name ?? '');
   const isFavorited = isInWishlist(product.id);
   const productReviews = REVIEWS.filter(r => r.productId === product.id || r.productId === 'general');
 
@@ -401,13 +405,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
             <PincodeChecker />
           </div>
 
-          {/* Quick Value Pillar */}
-          <div className="pt-2 text-xs text-neutral-600">
-            <div className="flex items-center space-x-2 p-2.5 rounded-xl bg-neutral-50 border border-neutral-200/80">
-              <ShieldCheck className="w-4 h-4 text-orange-600 shrink-0" />
-              <span>Official 1-Year Brand Warranty</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -415,9 +412,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
       <div className="pt-8 border-t border-neutral-200">
         <div className="flex space-x-2 border-b border-neutral-200 mb-6">
           {[
-            { id: 'specs', label: 'Technical Specifications' },
-            { id: 'features', label: 'Key Safety Features' },
-            { id: 'care', label: 'Care & Maintenance' }
+            { id: 'description', label: 'Description' },
+            { id: 'specs', label: 'Specifications' },
+            ...(isHelmet ? [{ id: 'care', label: 'Care & Maintenance' }] : [])
           ].map(tab => (
             <button
               key={tab.id}
@@ -434,6 +431,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
         </div>
 
         <div className="bg-neutral-50 p-6 sm:p-8 rounded-2xl border border-neutral-200/80">
+          {activeTab === 'description' && <ProductDescription description={product.description} />}
+
           {activeTab === 'specs' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
               {Array.isArray(product.specifications)
@@ -462,23 +461,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
             </div>
           )}
 
-          {activeTab === 'features' && (
-            <div className="space-y-3">
-              <div className="text-xs text-neutral-700 leading-relaxed mb-4">
-                {product.description}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {product.features.map((feat, idx) => (
-                  <div key={idx} className="flex items-start space-x-2 text-xs text-neutral-800">
-                    <Check className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
-                    <span>{feat}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'care' && (
+          {activeTab === 'care' && isHelmet && (
             <div className="space-y-4 text-xs text-neutral-700 leading-relaxed max-w-3xl">
               <p>
                 <strong>Cleaning Instructions:</strong> Detach inner cheek pads and comfort liners. Hand wash using lukewarm water and mild organic cleaner. Air dry naturally away from direct sunlight or blow dryers.
@@ -487,7 +470,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
                 <strong>Visor Care:</strong> Clean exterior visor surface with a microfiber cloth and pure water or dedicated visor spray. Avoid household glass cleaners (ammonia ruins anti-scratch and UV coatings).
               </p>
               <p>
-                <strong>Storage:</strong> Always store in the included soft helmet bag in a dry, ventilated area away from battery acids and engine exhaust fumes.
+                <strong>Storage:</strong> Store in a helmet bag in a dry, ventilated area away from battery acids and engine exhaust fumes.
               </p>
             </div>
           )}
