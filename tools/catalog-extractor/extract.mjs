@@ -5,9 +5,9 @@
 import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, extname, join, resolve } from 'node:path'
 import { PoliteFetcher } from './lib/fetcher.mjs'
-import { buildStaging } from './lib/build.mjs'
+import { buildStaging, strongestCertification } from './lib/build.mjs'
 import { downloadImages } from './lib/images.mjs'
-import { HEADERS, writeCsv } from './lib/csv.mjs'
+import { HEADERS, parseCsv, writeCsv } from './lib/csv.mjs'
 import * as shopify from './lib/adapters/shopify.mjs'
 import * as woocommerce from './lib/adapters/woocommerce.mjs'
 import * as jsonld from './lib/adapters/jsonld.mjs'
@@ -137,7 +137,36 @@ async function run(options) {
     if (error.code !== 'ENOENT') throw error
   }
 
-  let images = { rows: [], downloaded: 0, reused: 0, recovered: 0, failures: [] }
+  // Helmet certifications confirmed by the owner (owner/helmet-certifications.csv:
+  // productCode, certification) override what was read from the source text.
+  // Several marks ("DOT, ISI") keep the strongest one, like the text reader does.
+  let certificationsApplied = 0
+  try {
+    const sheet = parseCsv(await readFile(join(out, 'owner', 'helmet-certifications.csv'), 'utf8'))
+    const byCode = new Map(sheet.filter((r) => r.productCode && r.certification?.trim()).map((r) => [r.productCode, r.certification]))
+    for (const p of staging.products) {
+      const given = byCode.get(p.productCode)
+      if (!given) continue
+      const certification = strongestCertification(given)
+      if (!certification) {
+        console.log(`  helmet-certifications.csv: "${given}" for ${p.productCode} is not ECE 22.06/22.05, DOT or ISI, skipped`)
+        continue
+      }
+      p.certification = certification
+      if (certification === 'ECE 22.06') p.tags = [...new Set([...p.tags.split(',').filter(Boolean), 'ece-22.06'])].join(',')
+      const issue = staging.issues.find((i) => i.productCode === p.productCode)
+      if (issue) issue.problems = issue.problems.split('; ').filter((x) => !/certification|ECE but/.test(x)).join('; ')
+      if (!staging.attributes.some((a) => a.attribute === 'Certification' && a.value === certification)) {
+        staging.attributes.push({ attribute: 'Certification', classification: '', dataType: '', value: certification, status: 'NEW' })
+      }
+      certificationsApplied++
+    }
+    staging.issues = staging.issues.filter((i) => i.problems)
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+  }
+
+  let images ={ rows: [], downloaded: 0, reused: 0, recovered: 0, failures: [] }
   if (!options['skip-images']) {
     console.log(`\nDownloading images for ${staging.imagePlans.length} products…`)
     const imageFetcher = new PoliteFetcher({ rawDir: join(out, 'raw', '_images'), delayMs: Number(config.imageDelayMs ?? 500), contact: config.contact })
@@ -198,6 +227,7 @@ async function run(options) {
     `Products without any photo: ${needsPhoto.length} (reports/needs-photo.csv)`,
     `Own / brand photos added: ${ownPhotos} (photos/<productCode>/)`,
     `Descriptions rewritten: ${descriptionsApplied} of ${staging.products.length}`,
+    `Helmet certifications from owner/helmet-certifications.csv: ${certificationsApplied}`,
     `Re-filed by name rules: ${staging.refiled.length} (reports/refiled-by-name.csv)`,
     `Needs review: ${staging.issues.length} products (reports/needs-review.csv)`,
     `Duplicates skipped: ${staging.duplicates.length} (reports/skipped-duplicates.csv)`,

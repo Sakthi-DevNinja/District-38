@@ -208,11 +208,15 @@ test('watermarked source: its photos are not used, our photos from photos/<produ
     await writeFile(join(out, 'photos', 'MOTO-TORQUE-CRASH-GUARD', 'front.PNG'), png(1, 2, 3))
     await writeFile(join(out, 'photos', 'MOTO-TORQUE-CRASH-GUARD', 'side.jpg'), png(4, 5, 6))
     await mkdir(join(out, 'photos', 'NO-SUCH-PRODUCT'), { recursive: true })
+    await mkdir(join(out, 'owner'), { recursive: true })
+    await writeFile(join(out, 'owner', 'helmet-certifications.csv'), 'productCode,name,certification\nMOTO-TORQUE-CRASH-GUARD,Crash Guard,"ISI, DOT"\nMOTO-TORQUE-TAIL-TIDY,Tail Tidy,Snell\n')
 
     const { stdout } = await run(process.execPath, [join(here, '..', 'extract.mjs'), 'run', '--config', join(work, 'sources.json'), '--out', out])
     assert.equal(hits.images, 0, 'watermarked photos are not downloaded')
     assert.match(stdout, /Own \/ brand photos added: 2/)
     assert.match(stdout, /photos\/NO-SUCH-PRODUCT: no product with this code, skipped/)
+    assert.match(stdout, /"Snell" for MOTO-TORQUE-TAIL-TIDY is not ECE 22\.06\/22\.05, DOT or ISI, skipped/)
+    assert.match(stdout, /Helmet certifications from owner\/helmet-certifications\.csv: 1/)
 
     const read = async (f) => parseCsv(await readFile(join(out, f), 'utf8'))
     const images = await read('staging/images.csv')
@@ -221,6 +225,11 @@ test('watermarked source: its photos are not used, our photos from photos/<produ
       ['MOTO-TORQUE-CRASH-GUARD', '2', 'MOTO-TORQUE-CRASH-GUARD/own-02.jpg', ''],
     ])
     assert.deepEqual(await readdir(join(out, 'staging', 'images', 'MOTO-TORQUE-CRASH-GUARD')), ['own-01.png', 'own-02.jpg'])
+
+    const products = await read('staging/products.csv')
+    assert.equal(products.find((p) => p.productCode === 'MOTO-TORQUE-CRASH-GUARD').certification, 'DOT', 'strongest of "ISI, DOT"')
+    assert.equal(products.find((p) => p.productCode === 'MOTO-TORQUE-TAIL-TIDY').certification, '')
+    assert.ok((await read('staging/attributes.csv')).some((a) => a.attribute === 'Certification' && a.value === 'DOT'))
 
     const needsPhoto = await read('reports/needs-photo.csv')
     assert.deepEqual(needsPhoto.map((p) => p.productCode), ['MOTO-TORQUE-TAIL-TIDY'])

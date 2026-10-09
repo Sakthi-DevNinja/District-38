@@ -113,6 +113,11 @@ function detectCertification(text) {
   return { certification: '', tag: '', eceVersionUnknown: /\bECE\b/i.test(text) }
 }
 
+/** The strongest mark named in a short value like "DOT, ISI" ('' if none recognised). */
+export function strongestCertification(text) {
+  return detectCertification(text).certification
+}
+
 /**
  * Turns raw products from every source into staging rows.
  * Sources are given in priority order: when the same product is listed more
