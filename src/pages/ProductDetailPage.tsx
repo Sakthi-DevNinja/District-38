@@ -232,6 +232,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
         <div className="lg:col-span-7 sticky top-24">
           <ProductGallery
             images={product.images}
+            thumbs={product.imageThumbs}
             productName={product.name}
             certificationBadge={product.certifications?.[0]}
           />

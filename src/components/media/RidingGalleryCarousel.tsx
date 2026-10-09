@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useShop } from '../../context/ShopContext';
+import { responsiveImage } from '../../lib/images';
 
 interface GallerySlide {
   type: 'photo' | 'poster';
@@ -57,6 +58,9 @@ export const RidingGalleryCarousel: React.FC = () => {
   const { navigate } = useShop();
   const [active, setActive] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  // Slides whose image may load: the shown one and the next, so a phone
+  // never downloads all four photos up front.
+  const [loadedUpTo, setLoadedUpTo] = useState(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const goTo = useCallback((idx: number) => {
@@ -73,6 +77,10 @@ export const RidingGalleryCarousel: React.FC = () => {
     };
   }, [active, isPaused]);
 
+  useEffect(() => {
+    setLoadedUpTo((prev) => Math.max(prev, Math.min(active + 1, SLIDES.length - 1)));
+  }, [active]);
+
   const slide = SLIDES[active];
 
   return (
@@ -84,16 +92,20 @@ export const RidingGalleryCarousel: React.FC = () => {
       {/* Slides with a Ken-Burns slow-zoom on the active one — a small
           detail that keeps a full-bleed static photo from feeling like a
           plain, ordinary slideshow. */}
-      {SLIDES.map((s, idx) => (
-        <img
-          key={idx}
-          src={s.image}
-          alt=""
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
-            idx === active ? 'opacity-100' : 'opacity-0'
-          } ${idx === active ? 'animate-[kenburns_6.5s_ease-out_forwards]' : ''}`}
-        />
-      ))}
+      {SLIDES.map((s, idx) =>
+        idx <= loadedUpTo ? (
+          <img
+            key={idx}
+            {...responsiveImage(s.image, '100vw')}
+            alt=""
+            fetchPriority={idx === 0 ? 'high' : 'low'}
+            decoding="async"
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+              idx === active ? 'opacity-100' : 'opacity-0'
+            } ${idx === active ? 'animate-[kenburns_6.5s_ease-out_forwards]' : ''}`}
+          />
+        ) : null
+      )}
 
       <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/30 to-neutral-950/10" />
       {slide.type === 'poster' && (
@@ -112,7 +124,7 @@ export const RidingGalleryCarousel: React.FC = () => {
 
       {/* Content */}
       {slide.type === 'poster' ? (
-        <div className="relative z-10 h-full flex items-center px-6 sm:px-12 lg:px-20">
+        <div key={active} className="relative z-10 h-full flex items-center px-6 sm:px-12 lg:px-20">
           <div className="max-w-xl">
             <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-orange-400 mb-4">
               <span className="w-1.5 h-1.5 bg-orange-500" />
@@ -149,7 +161,7 @@ export const RidingGalleryCarousel: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="relative z-10 h-full flex flex-col justify-end px-6 sm:px-12 lg:px-20 pb-16 sm:pb-20">
+        <div key={active} className="relative z-10 h-full flex flex-col justify-end px-6 sm:px-12 lg:px-20 pb-16 sm:pb-20">
           <div className="text-[11px] font-bold uppercase tracking-widest text-orange-400 mb-2">
             {slide.kicker}
           </div>

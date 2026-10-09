@@ -3,12 +3,15 @@ import { ChevronLeft, ChevronRight, ImageOff, Maximize2, ShieldCheck, Sparkles }
 
 interface ProductGalleryProps {
   images: string[];
+  /** Small versions of `images` for the thumbnail strip; falls back to `images`. */
+  thumbs?: string[];
   productName: string;
   certificationBadge?: string;
 }
 
 export const ProductGallery: React.FC<ProductGalleryProps> = ({
   images,
+  thumbs,
   productName,
   certificationBadge
 }) => {
@@ -42,8 +45,10 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
               }`}
             >
               <img
-                src={img}
+                src={thumbs?.[idx] ?? img}
                 alt={`${productName} thumbnail ${idx + 1}`}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
               />
             </button>
@@ -57,6 +62,7 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
           <img
             src={activeImage}
             alt={`${productName} view ${selectedIndex + 1}`}
+            fetchPriority="high"
             className={`w-full h-full object-cover transition-transform duration-500 cursor-zoom-in ${
               isZoomed ? 'scale-150' : 'group-hover:scale-105'
             }`}

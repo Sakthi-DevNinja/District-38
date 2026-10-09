@@ -18,6 +18,7 @@ import { useTags } from '../hooks/use-tags';
 import { RIDING_STYLES, tagCounts } from '../lib/collections';
 import { usePageMeta } from '../hooks/use-page-meta';
 import { shippingPromise } from '../data/policies';
+import { responsiveImage } from '../lib/images';
 
 export const HomePage: React.FC = () => {
   const { navigate, updateShopFilters, resetShopFilters } = useShop();
@@ -126,8 +127,10 @@ export const HomePage: React.FC = () => {
               >
                 {categoryImage(category.slug) && (
                   <img
-                    src={categoryImage(category.slug)}
+                    {...responsiveImage(categoryImage(category.slug)!, idx === 0 ? '(min-width: 1024px) 50vw, 100vw' : '(min-width: 1024px) 25vw, 50vw')}
                     alt={category.name}
+                    loading="lazy"
+                    decoding="async"
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                 )}

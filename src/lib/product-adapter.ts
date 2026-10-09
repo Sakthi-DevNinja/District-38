@@ -106,13 +106,14 @@ export function adaptListItem(dto: PublicProductListItem): Product {
 }
 
 export function adaptDetail(dto: PublicProductDetail): Product {
-  const images = [...dto.images]
-    .sort((a, b) => a.position - b.position)
-    .map((img) => resolveImageUrl(img.mediumUrl))
+  const sorted = [...dto.images].sort((a, b) => a.position - b.position)
+  const images = sorted.map((img) => resolveImageUrl(img.mediumUrl))
   return {
     ...baseFields(dto),
     description: dto.description ?? dto.shortDescription ?? '',
     images: images.length > 0 ? images : baseFields(dto).images,
+    // Small versions for the gallery's thumbnail strip, same order as images.
+    imageThumbs: images.length > 0 ? sorted.map((img) => resolveImageUrl(img.thumbnailUrl)) : undefined,
     stockCount: dto.availableQuantity,
     variants: dto.variants.map(toVariant),
   }

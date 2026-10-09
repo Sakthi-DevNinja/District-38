@@ -56,6 +56,8 @@ export interface Product {
   dispatchDays?: string;
   stockCount: number;
   images: string[];
+  /** Small versions of `images` for thumbnail strips (product detail only). */
+  imageThumbs?: string[];
   thumbnail: string;
   shortDescription: string;
   description: string;
