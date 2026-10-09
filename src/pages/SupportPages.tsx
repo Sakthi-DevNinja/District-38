@@ -13,6 +13,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { DISTRICT_38_STORE } from '../data/storeInfo';
+import { POLICY } from '../data/policies';
 import { useShop } from '../context/ShopContext';
 import { usePageMeta } from '../hooks/use-page-meta';
 import { setStructuredData, setRobotsMeta } from '../lib/seo';
@@ -259,15 +260,17 @@ export const FAQPage: React.FC = () => {
     },
     {
       q: 'Do you offer size exchange if the jacket or helmet does not fit?',
-      a: 'Yes! District 38 provides a hassle-free 07-Day Size Exchange guarantee. As long as the item is unused, unworn with original tags, visor films intact, and original box packaging undamaged, we arrange reverse pickup or exchange at our Trichy store.'
+      a: POLICY.sizeExchangeDays !== null
+        ? `Yes. Within ${POLICY.sizeExchangeDays} days of delivery you can ask for a different size of the same product, if the item is unused and unworn with all tags, visor films and the original box. Contact us first on WhatsApp or email with your order number. See our Returns, Refunds & Cancellation policy for the full rules.`
+        : 'We do not offer size exchanges on online orders. Please check the size chart, or visit our Trichy store to try gear on before you buy. Damaged or wrong items are always replaced; see our Returns, Refunds & Cancellation policy.'
     },
     {
       q: 'How fast do you dispatch online orders?',
-      a: 'All in-stock items are packaged and dispatched directly from our Trichy Central Hub on the same day if ordered before 3:00 PM. Delivery across Tamil Nadu and South India takes 1–3 business days. North and East India takes 3–5 business days via BlueDart Air / DTDC Express.'
+      a: `In-stock items are packed and handed to the courier within ${POLICY.dispatchDaysInStock} business days of your order, and usually reach you ${POLICY.deliveryDays} business days after dispatch depending on your location. Items marked "Available on order" are dispatched when they arrive, in the time shown on the product page. Shipping is free.`
     },
     {
-      q: 'Can I pick up my order in person at the Trichy Salai Road Store?',
-      a: 'Yes! Select "Trichy Store Pickup (Click & Collect)" during checkout. Your gear will be prepared, sanitized, and ready for you to try on in our store in 1 hour. You can test your riding posture on our simulation rig with our specialists.'
+      q: 'Can I buy or try gear at the Trichy store?',
+      a: 'Yes. Visit our store on Salai Road, Trichy, to try helmets and gear on before you buy. Online orders are delivered by courier.'
     },
     {
       q: 'Are all products 100% authentic and covered by warranty?',
@@ -328,108 +331,6 @@ export const FAQPage: React.FC = () => {
           );
         })}
       </div>
-    </div>
-  );
-};
-
-// 4. Shipping Policy Page
-export const ShippingPolicyPage: React.FC = () => {
-  usePageMeta({
-    title: 'Shipping & Dispatch Policy',
-    description: 'Free express shipping on orders above ₹5,000. Same-day dispatch before 3 PM, delivered via BlueDart, DTDC, and Delhivery.',
-    path: '/shipping'
-  }, []);
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6 text-xs sm:text-sm text-neutral-700 leading-relaxed">
-      <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950">Shipping & Dispatch Policy</h1>
-      <p>
-        At <strong>District 38</strong>, we prioritize the secure, prompt delivery of all motorcycle riding gear. Every helmet and jacket is carefully bubble-wrapped and double-boxed to guarantee it arrives in factory condition.
-      </p>
-
-      <h2 className="text-base sm:text-lg font-bold text-neutral-950 pt-3">1. Dispatch Timelines</h2>
-      <p>
-        - Orders placed before 3:00 PM IST (Monday through Saturday) are dispatched on the <strong>same day</strong> from our fulfillment hub.<br />
-        - Orders placed after 3:00 PM or on Sundays/Public Holidays will be dispatched on the next business day.
-      </p>
-
-      <h2 className="text-base sm:text-lg font-bold text-neutral-950 pt-3">2. Delivery Charges & Free Shipping</h2>
-      <p>
-        - Orders over <strong>₹5,000</strong> qualify for <strong>FREE Express Shipping</strong> anywhere across India.<br />
-        - For orders under ₹5,000, a flat shipping fee of ₹149 is calculated at checkout.
-      </p>
-
-      <h2 className="text-base sm:text-lg font-bold text-neutral-950 pt-3">3. Courier Partners & Tracking</h2>
-      <p>
-        All consignments are shipped via premium logistics partners including BlueDart Air, DTDC Express, and Delhivery. You will receive an SMS and email with live tracking details as soon as the manifest is scanned.
-      </p>
-    </div>
-  );
-};
-
-// 5. Returns & Exchange Policy Page
-export const ReturnsPolicyPage: React.FC = () => {
-  usePageMeta({
-    title: 'Returns & Exchange Policy',
-    description: 'District 38\'s 7-day size exchange guarantee — eligibility rules and how to initiate a return or exchange.',
-    path: '/returns'
-  }, []);
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6 text-xs sm:text-sm text-neutral-700 leading-relaxed">
-      <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950">07-Day Size Exchange Guarantee</h1>
-      <p>
-        We understand that finding the perfect motorcycle helmet or riding jacket fit requires precision. If your item does not fit comfortably, we offer a straightforward <strong>07-Day Size Exchange</strong>.
-      </p>
-
-      <h2 className="text-base sm:text-lg font-bold text-neutral-950 pt-3">Exchange Eligibility Rules</h2>
-      <ul className="list-disc pl-5 space-y-1.5">
-        <li>The item must be in unridden, brand-new condition.</li>
-        <li>Original helmet visor protective film must NOT be peeled or removed.</li>
-        <li>Original brand tags, manufacturer paperwork, and packaging boxes must be intact.</li>
-        <li>Exchange request must be initiated within 7 calendar days of delivery.</li>
-      </ul>
-
-      <h2 className="text-base sm:text-lg font-bold text-neutral-950 pt-3">How to Initiate an Exchange</h2>
-      <p>
-        Contact our Trichy Concierge on WhatsApp at <strong>+91 63697 08558</strong> or email <strong>district38trichy@gmail.com</strong> with your Order ID and the replacement size required. We will arrange a door-to-door courier reverse pickup.
-      </p>
-    </div>
-  );
-};
-
-// 6. Privacy Policy Page
-export const PrivacyPolicyPage: React.FC = () => {
-  usePageMeta({
-    title: 'Privacy Policy',
-    description: 'How District 38 collects, uses, and protects your personal information.',
-    path: '/privacy'
-  }, []);
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6 text-xs sm:text-sm text-neutral-700 leading-relaxed">
-      <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950">Privacy Policy</h1>
-      <p>
-        District 38 is committed to protecting your personal privacy. We do not sell, rent, or trade customer contact information to third parties. Customer details are strictly used for payment authorization, courier delivery SMS updates, and customer warranty registration.
-      </p>
-    </div>
-  );
-};
-
-// 7. Terms & Conditions Page
-export const TermsPage: React.FC = () => {
-  usePageMeta({
-    title: 'Terms & Conditions',
-    description: 'Terms and conditions for purchases made through District 38.',
-    path: '/terms'
-  }, []);
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6 text-xs sm:text-sm text-neutral-700 leading-relaxed">
-      <h1 className="text-2xl sm:text-3xl font-extrabold text-neutral-950">Terms & Conditions</h1>
-      <p>
-        All purchases through the District 38 platform are subject to standard consumer terms under the laws of India. Jurisdiction for any disputes rests with the courts of Tiruchirappalli, Tamil Nadu.
-      </p>
     </div>
   );
 };

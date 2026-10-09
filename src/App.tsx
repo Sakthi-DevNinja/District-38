@@ -37,10 +37,10 @@ const GuideDetailPage = lazy(() => import('./pages/GuideDetailPage').then(m => (
 const AboutUsPage = lazy(() => import('./pages/SupportPages').then(m => ({ default: m.AboutUsPage })));
 const ContactPage = lazy(() => import('./pages/SupportPages').then(m => ({ default: m.ContactPage })));
 const FAQPage = lazy(() => import('./pages/SupportPages').then(m => ({ default: m.FAQPage })));
-const ShippingPolicyPage = lazy(() => import('./pages/SupportPages').then(m => ({ default: m.ShippingPolicyPage })));
-const ReturnsPolicyPage = lazy(() => import('./pages/SupportPages').then(m => ({ default: m.ReturnsPolicyPage })));
-const PrivacyPolicyPage = lazy(() => import('./pages/SupportPages').then(m => ({ default: m.PrivacyPolicyPage })));
-const TermsPage = lazy(() => import('./pages/SupportPages').then(m => ({ default: m.TermsPage })));
+const ShippingPolicyPage = lazy(() => import('./pages/PolicyPages').then(m => ({ default: m.ShippingPolicyPage })));
+const ReturnsPolicyPage = lazy(() => import('./pages/PolicyPages').then(m => ({ default: m.ReturnsPolicyPage })));
+const PrivacyPolicyPage = lazy(() => import('./pages/PolicyPages').then(m => ({ default: m.PrivacyPolicyPage })));
+const TermsPage = lazy(() => import('./pages/PolicyPages').then(m => ({ default: m.TermsPage })));
 const NotFoundPage = lazy(() => import('./pages/SupportPages').then(m => ({ default: m.NotFoundPage })));
 
 const MainRouter: React.FC = () => {

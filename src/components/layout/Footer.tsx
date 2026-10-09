@@ -141,7 +141,7 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <button onClick={() => navigate('/returns')} className="hover:text-white transition-colors">
-                  Returns & Exchanges
+                  Returns, Refunds & Cancellation
                 </button>
               </li>
               <li>
