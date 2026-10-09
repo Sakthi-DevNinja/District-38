@@ -46,6 +46,9 @@ Copy the examples next to each other and edit:
   - `fitmentCategories`: bike-model categories ("KTM", "ROYAL ENFIELD") turned into
     tags like `fits-ktm` instead of being treated as brands or product types.
     Use an object to fix a name: `{ "APRILLA": "Aprilia" }`.
+  - `useImages: false` on a source whose photos can't be used (watermarked, or no
+    permission). Its products come through without photos and are listed in
+    `reports/needs-photo.csv` until our own or the brand's photos are added.
 - In `category-map.json`, `""` ignores a category ("Flash sale"), and
   `refine` picks a subcategory by keyword, e.g. helmets into Full Face,
   Modular, Open Face, Off-Road & Adventure or Kids.
@@ -71,6 +74,16 @@ node tools/catalog-extractor/extract.mjs run --config tools/catalog-extractor/so
 | `raw/` | Cached responses; re-runs don't hit the sites again (`--refresh` to re-fetch) |
 
 Re-running is safe: cached pages and downloaded images are reused.
+
+Two folders next to `staging/` are applied on every run, so they survive
+re-extraction:
+
+- `descriptions/*.json`: `[{ productCode, shortDescription, description }]`,
+  our rewritten descriptions.
+- `photos/<productCode>/*.jpg|png|webp`: our own photos or the brand's. They are
+  copied into `staging/images/<productCode>/own-01.jpg…` after any source
+  photos, in file-name order (name them `01-front.jpg`, `02-side.jpg` to set the
+  order). A folder that doesn't match a product code is reported and skipped.
 
 ## How it behaves on the source sites
 

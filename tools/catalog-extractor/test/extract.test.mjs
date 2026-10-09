@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { execFile } from 'node:child_process'
-import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -176,6 +176,58 @@ test('end to end: two shops into a staging folder, duplicates skipped', async ()
   } finally {
     shopA.server.close()
     shopB.server.close()
+  }
+})
+
+test('watermarked source: its photos are not used, our photos from photos/<productCode>/ are', async () => {
+  const hits = { images: 0 }
+  const shop = await serve((req, res) => {
+    const u = new URL(req.url, 'http://x')
+    if (u.pathname === '/robots.txt') return res.end('User-agent: *\n')
+    if (u.pathname === '/products.json') {
+      if (u.searchParams.get('page') && u.searchParams.get('page') !== '1') return res.end('{"products":[]}')
+      res.setHeader('content-type', 'application/json')
+      return res.end(JSON.stringify({ products: [
+        { id: 1, title: 'Crash Guard', handle: 'crash-guard', vendor: 'Moto Torque', product_type: 'Guards', body_html: '', tags: '', options: [{ name: 'Title' }],
+          variants: [{ sku: '', option1: 'Default Title', price: '2500' }], images: [{ src: `${shop.url}/img/wm.png`, position: 1 }] },
+        { id: 2, title: 'Tail Tidy', handle: 'tail-tidy', vendor: 'Moto Torque', product_type: 'Guards', body_html: '', tags: '', options: [{ name: 'Title' }],
+          variants: [{ sku: '', option1: 'Default Title', price: '900' }], images: [{ src: `${shop.url}/img/wm2.png`, position: 1 }] },
+      ] }))
+    }
+    if (u.pathname.startsWith('/img/')) { hits.images++; res.setHeader('content-type', 'image/png'); return res.end(png(9, 9, 9)) }
+    res.statusCode = 404; res.end()
+  })
+  try {
+    const work = await mkdtemp(join(tmpdir(), 'd38-extract-'))
+    await writeFile(join(work, 'sources.json'), JSON.stringify({
+      contact: 'test@example.com', delayMs: 0, imageDelayMs: 0,
+      sources: [{ name: 'shop', url: shop.url, adapter: 'shopify', useImages: false }],
+    }))
+    const out = join(work, 'out')
+    await mkdir(join(out, 'photos', 'MOTO-TORQUE-CRASH-GUARD'), { recursive: true })
+    await writeFile(join(out, 'photos', 'MOTO-TORQUE-CRASH-GUARD', 'front.PNG'), png(1, 2, 3))
+    await writeFile(join(out, 'photos', 'MOTO-TORQUE-CRASH-GUARD', 'side.jpg'), png(4, 5, 6))
+    await mkdir(join(out, 'photos', 'NO-SUCH-PRODUCT'), { recursive: true })
+
+    const { stdout } = await run(process.execPath, [join(here, '..', 'extract.mjs'), 'run', '--config', join(work, 'sources.json'), '--out', out])
+    assert.equal(hits.images, 0, 'watermarked photos are not downloaded')
+    assert.match(stdout, /Own \/ brand photos added: 2/)
+    assert.match(stdout, /photos\/NO-SUCH-PRODUCT: no product with this code, skipped/)
+
+    const read = async (f) => parseCsv(await readFile(join(out, f), 'utf8'))
+    const images = await read('staging/images.csv')
+    assert.deepEqual(images.map((i) => [i.productCode, i.position, i.localFile, i.sourceUrl]), [
+      ['MOTO-TORQUE-CRASH-GUARD', '1', 'MOTO-TORQUE-CRASH-GUARD/own-01.png', ''],
+      ['MOTO-TORQUE-CRASH-GUARD', '2', 'MOTO-TORQUE-CRASH-GUARD/own-02.jpg', ''],
+    ])
+    assert.deepEqual(await readdir(join(out, 'staging', 'images', 'MOTO-TORQUE-CRASH-GUARD')), ['own-01.png', 'own-02.jpg'])
+
+    const needsPhoto = await read('reports/needs-photo.csv')
+    assert.deepEqual(needsPhoto.map((p) => p.productCode), ['MOTO-TORQUE-TAIL-TIDY'])
+    const review = await read('reports/needs-review.csv')
+    assert.match(review.find((r) => r.productCode === 'MOTO-TORQUE-TAIL-TIDY').problems, /needs own photo \(source photos not usable\)/)
+  } finally {
+    shop.server.close()
   }
 })
 

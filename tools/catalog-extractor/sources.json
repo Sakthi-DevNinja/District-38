@@ -14,7 +14,9 @@
       "name": "throttlerz",
       "url": "https://throttlerz.com",
       "adapter": "woocommerce",
-      "titleCase": true
+      "titleCase": true,
+      "useImages": false,
+      "imagesNote": "Photos carry THROTTLERZ PITSTOP / PERFORMANCE BIKES watermarks: use brand photos or our own."
     }
   ],
   "knownBrands": [

@@ -171,7 +171,7 @@ export function buildStaging(
 
   // Group listings of the same product (across or within sites) by import key.
   const groups = new Map()
-  for (const { source, products, titleCase } of sourceResults) {
+  for (const { source, products, titleCase, useImages = true } of sourceResults) {
     for (const p of products) {
       const categories = p.sourceCategories ?? []
       const brand = canonicalBrand(p.brand) || brandFromCategories(categories) || brandFromName(p.name)
@@ -180,7 +180,11 @@ export function buildStaging(
       const words = significantWords(name, brand)
       const key = `${slugify(brand)}|${[...words].sort().join(' ')}`
       const list = groups.get(key) ?? []
-      list.push({ ...p, name, brand, source, sourceCategories: categories, words, importKey: makeImportKey(brand, name) })
+      // A source whose photos can't be used (e.g. watermarked) contributes no images;
+      // those products need their own or the brand's photos.
+      const images = useImages ? p.images : []
+      const imagesWithheld = !useImages && p.images.length > 0
+      list.push({ ...p, images, imagesWithheld, name, brand, source, sourceCategories: categories, words, importKey: makeImportKey(brand, name) })
       groups.set(key, list)
     }
   }
@@ -323,7 +327,7 @@ export function buildStaging(
     if (!primary.brand) problems.push('no brand')
     if (!category.mapped) problems.push('category not mapped')
     if (!sellingPrice) problems.push('no price')
-    if (imageUrls.length === 0) problems.push('no images')
+    if (imageUrls.length === 0) problems.push(primary.imagesWithheld ? 'needs own photo (source photos not usable)' : 'no images')
     if (possibleDuplicate) problems.push(`possible duplicate of "${possibleDuplicate.name}" (${possibleDuplicate.source})`)
     if (primary.needsSizes && productVariants.length === 0) problems.push('sizes not found, add them')
     if (/^helmets\b/i.test(category.path) && !cert.certification) {

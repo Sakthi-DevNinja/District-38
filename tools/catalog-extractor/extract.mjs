@@ -2,8 +2,8 @@
 // District 38 catalog extractor. See README.md.
 //   node extract.mjs recon https://example-shop.in
 //   node extract.mjs run --config sources.json [--limit 20] [--refresh] [--skip-images]
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
+import { dirname, extname, join, resolve } from 'node:path'
 import { PoliteFetcher } from './lib/fetcher.mjs'
 import { buildStaging } from './lib/build.mjs'
 import { downloadImages } from './lib/images.mjs'
@@ -106,7 +106,7 @@ async function run(options) {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
     await mkdir(join(out, 'snapshots'), { recursive: true })
     await writeFile(join(out, 'snapshots', `${source.name}-${stamp}.json`), JSON.stringify({ source, adapter: adapterName, products }, null, 2))
-    sourceResults.push({ source: source.name, products, titleCase: Boolean(source.titleCase) })
+    sourceResults.push({ source: source.name, products, titleCase: Boolean(source.titleCase), useImages: source.useImages !== false })
   }
 
   const staging = buildStaging(sourceResults, {
@@ -144,6 +144,32 @@ async function run(options) {
     images = await downloadImages(imageFetcher, staging.imagePlans, join(stagingDir, 'images'))
   }
 
+  // Our own / brand photos (photos/<productCode>/*.jpg|png|webp) are added on every build,
+  // after the source's photos, so they survive re-extraction like the descriptions.
+  let ownPhotos = 0
+  try {
+    const photosDir = join(out, 'photos')
+    const byCode = new Map(staging.products.map((p) => [p.productCode, p]))
+    for (const code of (await readdir(photosDir, { withFileTypes: true })).filter((d) => d.isDirectory()).map((d) => d.name).sort()) {
+      const product = byCode.get(code)
+      if (!product) {
+        console.log(`  photos/${code}: no product with this code, skipped`)
+        continue
+      }
+      const files = (await readdir(join(photosDir, code))).filter((f) => /\.(jpe?g|png|webp)$/i.test(f)).sort()
+      let position = images.rows.filter((r) => r.productCode === code).length
+      await mkdir(join(stagingDir, 'images', code), { recursive: true })
+      for (const [i, file] of files.entries()) {
+        const target = `own-${String(i + 1).padStart(2, '0')}${extname(file).toLowerCase()}`
+        await copyFile(join(photosDir, code, file), join(stagingDir, 'images', code, target))
+        images.rows.push({ productCode: code, productImportKey: product.importKey, position: ++position, localFile: `${code}/${target}`, sourceUrl: '', label: '', visibility: 'PUBLIC', fileId: '', fileSha256: '', status: 'NEW' })
+        ownPhotos++
+      }
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+  }
+
   await writeCsv(join(stagingDir, 'brands.csv'), HEADERS.brands, staging.brands)
   await writeCsv(join(stagingDir, 'attributes.csv'), HEADERS.attributes, staging.attributes)
   await writeCsv(join(stagingDir, 'categories.csv'), HEADERS.categories, staging.categories)
@@ -170,6 +196,7 @@ async function run(options) {
     `Brands: ${staging.brands.length}, categories: ${staging.categories.length}`,
     `Images: ${images.rows.length} (${images.downloaded} downloaded, ${images.reused} already on disk, ${images.recovered} recovered from resized copies, ${images.failures.length} unavailable)${options['skip-images'] ? ' — skipped' : ''}`,
     `Products without any photo: ${needsPhoto.length} (reports/needs-photo.csv)`,
+    `Own / brand photos added: ${ownPhotos} (photos/<productCode>/)`,
     `Descriptions rewritten: ${descriptionsApplied} of ${staging.products.length}`,
     `Re-filed by name rules: ${staging.refiled.length} (reports/refiled-by-name.csv)`,
     `Needs review: ${staging.issues.length} products (reports/needs-review.csv)`,
