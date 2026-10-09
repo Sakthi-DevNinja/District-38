@@ -22,18 +22,6 @@ export interface ProductSpecification {
   value: string;
 }
 
-export interface ProductReview {
-  id: string;
-  author: string;
-  rating: number;
-  date: string;
-  title: string;
-  comment: string;
-  verifiedPurchase: boolean;
-  bikeModel?: string;
-  helpfulCount: number;
-}
-
 export type CertificationType = 'ECE 22.06' | 'ECE 22.05' | 'DOT' | 'ISI' | 'CE Level 2' | 'CE Level 1' | 'SNELL';
 export type RidingStyle = 'City' | 'Touring' | 'Adventure' | 'Performance' | 'All-Weather';
 

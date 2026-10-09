@@ -17,9 +17,7 @@ import { useShop } from '../context/ShopContext';
 import { useProduct } from '../hooks/use-product';
 import { useProducts } from '../hooks/use-products';
 import { adaptDetail, adaptListItem, slugifyCategoryName } from '../lib/product-adapter';
-import { REVIEWS } from '../data/reviews';
 import { ProductGallery } from '../components/commerce/ProductGallery';
-import { ReviewSection } from '../components/commerce/ReviewSection';
 import { PincodeChecker } from '../components/commerce/PincodeChecker';
 import { ProductGrid } from '../components/commerce/ProductGrid';
 import { VariantPicker } from '../components/commerce/VariantPicker';
@@ -144,7 +142,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
   // Helmet care advice only makes sense on helmets (VEYONN categories are flat: Full Face, Modular…).
   const isHelmet = HELMET_CATEGORIES.has(productDto.category?.name ?? '');
   const isFavorited = isInWishlist(product.id);
-  const productReviews = REVIEWS.filter(r => r.productId === product.id || r.productId === 'general');
 
   // Related products — real data, adapted the same way the catalog list is.
   const relatedProducts = (relatedQuery.data?.items ?? [])
@@ -477,13 +474,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
         </div>
       </div>
 
-      {/* 4. Verified Rider Reviews */}
-      <ReviewSection
-        productId={product.id}
-        rating={product.rating}
-        reviewCount={product.reviewCount}
-        initialReviews={productReviews}
-      />
+      {/* Reviews are hidden until VEYONN can store them: the old form kept a
+          review only in the visitor's own browser, so it looked posted but wasn't. */}
 
       {/* 5. Related Gear Carousel */}
       {relatedProducts.length > 0 && (
