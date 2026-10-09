@@ -17,6 +17,7 @@ import { VideoPlayerSection } from '../components/media/VideoPlayerSection';
 import { useTags } from '../hooks/use-tags';
 import { RIDING_STYLES, tagCounts } from '../lib/collections';
 import { usePageMeta } from '../hooks/use-page-meta';
+import { shippingPromise } from '../data/policies';
 
 export const HomePage: React.FC = () => {
   const { navigate, updateShopFilters, resetShopFilters } = useShop();
@@ -60,7 +61,7 @@ export const HomePage: React.FC = () => {
 
   const trustPoints = [
     { icon: ShieldCheck, title: 'Authorised Dealer', desc: '100% genuine gear, direct warranty' },
-    { icon: Truck, title: 'Free Express Shipping', desc: 'On all orders above ₹5,000' },
+    { icon: Truck, title: shippingPromise().title, desc: shippingPromise().detail },
     { icon: CreditCard, title: 'Secure Checkout', desc: 'UPI, cards, net banking & wallets' }
   ];
 

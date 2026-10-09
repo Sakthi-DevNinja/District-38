@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Sparkles, ChevronRight, X, Truck, ShieldCheck, MapPin } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
+import { shippingPromise } from '../../data/policies';
 
 export const AnnouncementBar: React.FC = () => {
   const [isVisible, setIsVisible] = useState(true);
@@ -9,19 +10,19 @@ export const AnnouncementBar: React.FC = () => {
 
   const messages = [
     {
-      text: 'FREE EXPRESS SHIPPING ON ORDERS OVER ₹5,000',
+      text: `${shippingPromise().title} ${shippingPromise().detail}`.toUpperCase(),
       badge: 'OFFER',
       action: () => navigate('/offers'),
       icon: Truck
     },
     {
-      text: 'FLAGSHIP STORE OPEN TODAY UNTIL 9:30 PM — FREE HELMET LASER SIZING & TRIAL',
+      text: 'VISIT OUR TRICHY STORE ON SALAI ROAD — TRY HELMETS ON BEFORE YOU BUY',
       badge: 'VISIT STORE',
       action: () => navigate('/contact'),
       icon: MapPin
     },
     {
-      text: 'ALL HELMETS CERTIFIED ECE 22.06 / DOT / ISI — 100% GENUINE GUARANTEE',
+      text: 'EVERY HELMET LISTS ITS SAFETY CERTIFICATION (ISI / ECE / DOT) ON ITS PAGE',
       badge: 'SAFETY FIRST',
       action: () => navigate('/helmets'),
       icon: ShieldCheck

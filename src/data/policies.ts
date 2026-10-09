@@ -22,6 +22,13 @@ export const POLICY = {
   /** Name of the grievance officer (IT Rules 2011 / DPDP Act 2023). */
   grievanceOfficer: null as string | null,
 
+  /**
+   * Order value from which shipping is free; null = free on every order
+   * (what checkout does today). If the owner sets a threshold, checkout
+   * must also start charging below it.
+   */
+  freeShippingAbove: null as number | null,
+
   /** Business days to dispatch an in-stock order. */
   dispatchDaysInStock: '1–2',
   /** Typical courier transit time after dispatch. */
@@ -41,4 +48,11 @@ export const POLICY = {
 /** "District 38 (operated by XYZ Enterprises)" once the legal name is known. */
 export function businessName(): string {
   return POLICY.legalName ? `${POLICY.brandName} (operated by ${POLICY.legalName})` : POLICY.brandName;
+}
+
+/** Short shipping promise for banners and trust bars, from POLICY.freeShippingAbove. */
+export function shippingPromise(): { title: string; detail: string } {
+  return POLICY.freeShippingAbove === null
+    ? { title: 'Free Shipping', detail: 'On every order, across India' }
+    : { title: 'Free Shipping', detail: `On orders above ₹${POLICY.freeShippingAbove.toLocaleString('en-IN')}, across India` };
 }

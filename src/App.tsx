@@ -1,4 +1,5 @@
 import React, { useEffect, Suspense, lazy } from 'react';
+import { ErrorBoundary } from './components/layout/ErrorBoundary';
 import { ShopProvider, useShop } from './context/ShopContext';
 import { setStructuredData } from './lib/seo';
 import { DISTRICT_38_STORE } from './data/storeInfo';
@@ -227,9 +228,12 @@ const MainRouter: React.FC = () => {
 
       {/* 2. Main Routed View */}
       <main className="flex-1 pb-16 md:pb-0">
-        <Suspense fallback={<div className="w-full py-24 text-center text-sm text-neutral-400">Loading…</div>}>
-          {renderRoute()}
-        </Suspense>
+        {/* Keyed by route, so moving to another page clears a crashed one. */}
+        <ErrorBoundary key={currentRoute} variant="page">
+          <Suspense fallback={<div className="w-full py-24 text-center text-sm text-neutral-400">Loading…</div>}>
+            {renderRoute()}
+          </Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* 3. Global Footer */}
@@ -250,8 +254,10 @@ const MainRouter: React.FC = () => {
 
 export default function App() {
   return (
-    <ShopProvider>
-      <MainRouter />
-    </ShopProvider>
+    <ErrorBoundary variant="app">
+      <ShopProvider>
+        <MainRouter />
+      </ShopProvider>
+    </ErrorBoundary>
   );
 }

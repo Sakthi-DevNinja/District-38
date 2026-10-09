@@ -14,6 +14,7 @@ import { useCategories } from '../../hooks/use-categories';
 import { useBrands } from '../../hooks/use-brands';
 import { adaptListItem, slugifyCategoryName as slugify } from '../../lib/product-adapter';
 import { RIDING_GUIDES } from '../../data/guides';
+import { shippingPromise } from '../../data/policies';
 
 // Each term must return results from the live catalog — check them
 // whenever brands or categories are unpublished.
@@ -312,7 +313,7 @@ export const SearchOverlay: React.FC = () => {
 
                 {/* Quick Shortcuts */}
                 <div className="pt-4 border-t border-neutral-100 flex items-center justify-between text-xs text-neutral-500">
-                  <span>Free doorstep delivery on orders above ₹5,000</span>
+                  <span>{shippingPromise().title} {shippingPromise().detail.toLowerCase()}</span>
                   <button 
                     onClick={() => { setIsSearchOpen(false); navigate('/offers'); }}
                     className="font-bold text-orange-600 hover:underline"

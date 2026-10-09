@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useShop } from '../../context/ShopContext';
 import { DISTRICT_38_STORE } from '../../data/storeInfo';
+import { shippingPromise } from '../../data/policies';
 import { BrandLogo } from './BrandLogo';
 import { useCategoryTree } from '../../hooks/use-category-tree';
 
@@ -53,8 +54,8 @@ export const Footer: React.FC = () => {
           <div className="flex items-center justify-center gap-3 py-4 sm:py-5 sm:px-6">
             <Truck className="w-4 h-4 text-orange-500 shrink-0" />
             <div className="text-center sm:text-left">
-              <span className="text-xs sm:text-sm font-bold text-white">Free Express Shipping</span>
-              <span className="hidden sm:inline text-[11px] text-neutral-400 ml-2">On orders above ₹5,000, across India</span>
+              <span className="text-xs sm:text-sm font-bold text-white">{shippingPromise().title}</span>
+              <span className="hidden sm:inline text-[11px] text-neutral-400 ml-2">{shippingPromise().detail}</span>
             </div>
           </div>
 

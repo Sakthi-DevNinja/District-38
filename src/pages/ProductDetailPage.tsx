@@ -24,6 +24,7 @@ import { VariantPicker } from '../components/commerce/VariantPicker';
 import { ProductDescription } from '../components/commerce/ProductDescription';
 import { dispatchText, isOrderable } from '../lib/availability';
 import { usePageMeta } from '../hooks/use-page-meta';
+import { shippingPromise } from '../data/policies';
 import { NotFoundNotice } from '../components/layout/NotFoundNotice';
 import { setStructuredData } from '../lib/seo';
 import { resolveImageUrl } from '../lib/api/client';
@@ -295,7 +296,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({ slug }) =>
               )}
             </div>
             <div className="text-[11px] text-neutral-500 font-normal">
-              Inclusive of all taxes & GST invoice. Free shipping applies at checkout.
+              Inclusive of all taxes & GST invoice. {shippingPromise().title} {shippingPromise().detail.toLowerCase()}.
             </div>
           </div>
 
