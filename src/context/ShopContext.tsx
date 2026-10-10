@@ -596,7 +596,9 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               countryCode: detail.deliveryAddress.countryCode
             }
           : null,
-        payment: detail.payment
+        payment: detail.payment,
+        // Older backends did not send deliveries.
+        deliveries: detail.deliveries ?? []
       };
     } catch (err) {
       showToast(errorMessage(err, 'Could not load this order.'), 'error');

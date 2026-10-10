@@ -175,6 +175,17 @@ export interface Order {
   lines: OrderLine[];
   deliveryAddress: (DeliveryAddress & { line1: string }) | null;
   payment: OrderPayment;
+  deliveries: OrderDelivery[];
+}
+
+/** A parcel dispatched for the order, with courier tracking when the store has added it. */
+export interface OrderDelivery {
+  deliveryNumber: string;
+  status: 'DISPATCHED';
+  dispatchedAt: string | null;
+  courierName: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
 }
 
 export interface OrderListItem {
@@ -183,6 +194,7 @@ export interface OrderListItem {
   documentStatus: string;
   salesChannel: string;
   createdAt: string;
+  deliveries: OrderDelivery[];
 }
 
 // Real VEYONN customer profile (CustomerProfileResponseDto) — deliberately

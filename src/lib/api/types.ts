@@ -239,12 +239,24 @@ export interface VerifyRazorpayPaymentResult {
 // ─── Customer Orders (customer-order.dto.ts) — customer-safe shape only,
 // never the admin SalesOrder DTOs. ────────────────────────────────────────
 
+/** A parcel dispatched for the order (only dispatched deliveries are returned). */
+export interface CustomerOrderDelivery {
+  deliveryNumber: string
+  status: 'DISPATCHED'
+  dispatchedAt: string | null
+  courierName: string | null
+  trackingNumber: string | null
+  /** An http(s) link to the courier's tracking page. */
+  trackingUrl: string | null
+}
+
 export interface CustomerOrderListItem {
   id: string
   orderNumber: string
   documentStatus: string
   salesChannel: string
   createdAt: string
+  deliveries: CustomerOrderDelivery[]
 }
 
 export interface CustomerOrderListPage {
@@ -292,4 +304,5 @@ export interface CustomerOrderDetail {
   lines: CustomerOrderLine[]
   deliveryAddress: CustomerOrderDeliveryAddress | null
   payment: CustomerOrderPayment
+  deliveries: CustomerOrderDelivery[]
 }
